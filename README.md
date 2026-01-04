@@ -10,11 +10,14 @@ Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capa
 
 - **Quick Note Capture**: Simple, distraction-free text input for rapid note-taking
 - **Share Target Integration**: Share text from any app directly to your Capacities daily note
+- **Multiple Space Support**: Settings allow you to configure multiple spaces and choose one upon posting
+- **Auto-detect Web Links**: If you save a URL only, your note gets saved as a Capacities Weblink automatically
 - **Direct API Integration**: Seamlessly sends notes to Capacities via their official API
 - **Secure Credential Storage**: API keys stored securely using Android's SharedPreferences
 - **Modern Material 3 UI**: Clean, intuitive interface following Material Design 3 guidelines
 - **Edge-to-Edge Design**: Modern Android UI with immersive edge-to-edge display
 - **Error Handling**: Detailed error messages to help troubleshoot API connectivity issues
+- **Backup/Restore**: Back up your settings to your phone, Google Drive, etc, and restore them later or on another device
 
 ## Requirements
 
