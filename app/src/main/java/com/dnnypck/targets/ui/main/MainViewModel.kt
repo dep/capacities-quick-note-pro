@@ -68,6 +68,11 @@ class MainViewModel(
         _state.update { it.copy(content = content) }
     }
 
+    private fun isUrlOnly(text: String): Boolean {
+        val trimmed = text.trim()
+        return trimmed.matches(Regex("^https?://[^\\s]+$"))
+    }
+
     fun sendContent() {
         val content = _state.value.content
         if (content.isBlank()) return
@@ -95,16 +100,29 @@ class MainViewModel(
                     "Content-Type" to "application/json"
                 )
 
-                val body = """
-                    {
-                        "spaceId": "$spaceId",
-                        "mdText": "${content.replace("\"", "\\\"").replace("\n", "\\n")}",
-                        "origin": "commandPalette"
-                    }
-                """.trimIndent()
+                // Check if content is only a URL
+                val isUrl = isUrlOnly(content)
+                val (endpoint, body) = if (isUrl) {
+                    // Use save-weblink endpoint
+                    "https://api.capacities.io/save-weblink" to """
+                        {
+                            "spaceId": "$spaceId",
+                            "url": "${content.trim().replace("\"", "\\\"")}"
+                        }
+                    """.trimIndent()
+                } else {
+                    // Use save-to-daily-note endpoint
+                    "https://api.capacities.io/save-to-daily-note" to """
+                        {
+                            "spaceId": "$spaceId",
+                            "mdText": "${content.replace("\"", "\\\"").replace("\n", "\\n")}",
+                            "origin": "commandPalette"
+                        }
+                    """.trimIndent()
+                }
 
                 val result = postToTarget(
-                    url = "https://api.capacities.io/save-to-daily-note",
+                    url = endpoint,
                     headers = headers,
                     body = body
                 )
@@ -126,7 +144,7 @@ class MainViewModel(
                             appendLine("Error: ${error.message}")
                             appendLine()
                             appendLine("Request details:")
-                            appendLine("URL: https://api.capacities.io/save-to-daily-note")
+                            appendLine("Endpoint: $endpoint")
                             appendLine("Space ID: $spaceId")
                             appendLine("API Key: ${apiKey.take(8)}...")
                             appendLine()
