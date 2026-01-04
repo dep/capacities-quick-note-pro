@@ -55,16 +55,35 @@ You're ready to start capturing quick notes!
 ### Standalone Mode
 
 1. Open the Capacities Quick Note app
-2. Type your note in the text field
-3. Tap "Send to Capacities"
-4. Your note will be appended to today's daily note in Capacities
+2. Select your target space from the dropdown (if you have multiple spaces configured)
+3. Type your note in the text field
+4. Tap "Send" to save to Capacities
+5. Your note will be appended to today's daily note in Capacities
 
 ### Share Target Mode
 
-1. Select text in any app (browser, messaging app, etc.)
+1. Select text or a URL in any app (browser, messaging app, etc.)
 2. Tap "Share" and choose "Capacities Quick Note"
 3. The app opens with the shared text pre-filled
-4. Review and tap "Send to Capacities"
+4. Review and tap "Send"
+
+### Markdown Formatting
+
+The app supports all Capacities markdown shortcuts. Tap "Formatting your notes" to see the full reference:
+
+- `#`, `##`, `###`, and `####` for headings
+- `-` for bullets
+- `1.` for numbered lists
+- `>` for quotes
+- `**text**` for bold text
+- `*text*` for italic text
+- `()` for tasks
+- `#tags` for tags
+- `[links](https://example.com)` for links
+
+### URL Detection
+
+When you enter only a URL (e.g., `https://example.com`), the app automatically saves it as a Capacities weblink with preview and metadata. If you include text with a URL, it's saved as a markdown note.
 
 ## Building from Source
 
@@ -164,7 +183,17 @@ This project follows standard Kotlin coding conventions and Android best practic
 
 ## API Integration
 
-The app uses the Capacities API endpoint:
+The app intelligently uses two Capacities API endpoints:
+
+### For URL-only content:
+- **Endpoint**: `https://api.capacities.io/save-weblink`
+- **Method**: POST
+- **Authentication**: Bearer token (API key)
+- **Required Fields**:
+  - `spaceId`: Your Capacities space identifier
+  - `url`: The URL to save as a weblink
+
+### For text/markdown content:
 - **Endpoint**: `https://api.capacities.io/save-to-daily-note`
 - **Method**: POST
 - **Authentication**: Bearer token (API key)
@@ -172,6 +201,8 @@ The app uses the Capacities API endpoint:
   - `spaceId`: Your Capacities space identifier
   - `mdText`: Markdown-formatted note content
   - `origin`: Set to "commandPalette"
+
+The app automatically detects if your input is only a URL and uses the appropriate endpoint.
 
 ## Privacy & Security
 
