@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.ui.theme
+package com.dnnypck.capacitiesquicknotepro.ui.theme
 
 import android.app.Activity
 import android.os.Build

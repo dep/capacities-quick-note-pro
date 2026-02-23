@@ -4,7 +4,7 @@ A lightweight Android app for quickly capturing notes and sending them directly 
 
 Testers Google Group: https://groups.google.com/g/capacities-quick-note-testers
 
-Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capacitiesquicknote
+Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capacitiesquicknotepro
 
 ## Features
 

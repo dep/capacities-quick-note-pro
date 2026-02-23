@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.data.network
+package com.dnnypck.capacitiesquicknotepro.data.network
 
 import io.ktor.client.request.headers
 import io.ktor.client.request.post

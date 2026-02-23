@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.widget
+package com.dnnypck.capacitiesquicknotepro.widget
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -6,9 +6,9 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
-import com.dnnypck.capacitiesquicknote.MainActivity
-import com.dnnypck.capacitiesquicknote.R
-import com.dnnypck.capacitiesquicknote.util.PreferencesManager
+import com.dnnypck.capacitiesquicknotepro.MainActivity
+import com.dnnypck.capacitiesquicknotepro.R
+import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 
 class CapacitiesWidget : AppWidgetProvider() {
 
@@ -31,9 +31,9 @@ class CapacitiesWidget : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_QUICK_NOTE = "com.dnnypck.capacitiesquicknote.ACTION_QUICK_NOTE"
-        const val ACTION_SELECT_SPACE = "com.dnnypck.capacitiesquicknote.ACTION_SELECT_SPACE"
-        const val ACTION_OPEN_SETTINGS = "com.dnnypck.capacitiesquicknote.ACTION_OPEN_SETTINGS"
+        const val ACTION_QUICK_NOTE = "com.dnnypck.capacitiesquicknotepro.ACTION_QUICK_NOTE"
+        const val ACTION_SELECT_SPACE = "com.dnnypck.capacitiesquicknotepro.ACTION_SELECT_SPACE"
+        const val ACTION_OPEN_SETTINGS = "com.dnnypck.capacitiesquicknotepro.ACTION_OPEN_SETTINGS"
 
         fun updateAppWidget(
             context: Context,

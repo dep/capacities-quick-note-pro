@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.widget
+package com.dnnypck.capacitiesquicknotepro.widget
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -8,9 +8,9 @@ import android.content.Intent
 import android.os.IBinder
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
-import com.dnnypck.capacitiesquicknote.R
-import com.dnnypck.capacitiesquicknote.data.network.postToTarget
-import com.dnnypck.capacitiesquicknote.util.PreferencesManager
+import com.dnnypck.capacitiesquicknotepro.R
+import com.dnnypck.capacitiesquicknotepro.data.network.postToTarget
+import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

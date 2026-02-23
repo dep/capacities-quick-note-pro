@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.ui.main
+package com.dnnypck.capacitiesquicknotepro.ui.main
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -47,8 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.dnnypck.capacitiesquicknote.ui.main.components.ContentTextField
-import com.dnnypck.capacitiesquicknote.ui.main.components.SendButton
+import com.dnnypck.capacitiesquicknotepro.ui.main.components.ContentTextField
+import com.dnnypck.capacitiesquicknotepro.ui.main.components.SendButton
 import com.dnnypck.targets.data.model.Space
 
 @OptIn(ExperimentalMaterial3Api::class)

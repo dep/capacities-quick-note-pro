@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.ui.main.components
+package com.dnnypck.capacitiesquicknotepro.ui.main.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn

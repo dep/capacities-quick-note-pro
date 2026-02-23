@@ -1,9 +1,9 @@
-package com.dnnypck.capacitiesquicknote.util
+package com.dnnypck.capacitiesquicknotepro.util
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.dnnypck.capacitiesquicknote.ui.main.MainViewModel
-import com.dnnypck.capacitiesquicknote.ui.settings.SettingsViewModel
+import com.dnnypck.capacitiesquicknotepro.ui.main.MainViewModel
+import com.dnnypck.capacitiesquicknotepro.ui.settings.SettingsViewModel
 
 class ViewModelFactory(
     private val preferencesManager: PreferencesManager

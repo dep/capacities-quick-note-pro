@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.ui.theme
+package com.dnnypck.capacitiesquicknotepro.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

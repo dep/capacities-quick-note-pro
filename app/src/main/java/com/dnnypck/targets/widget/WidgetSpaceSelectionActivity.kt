@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.widget
+package com.dnnypck.capacitiesquicknotepro.widget
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
@@ -12,8 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dnnypck.capacitiesquicknote.ui.theme.CapacitiesQuickNoteTheme
-import com.dnnypck.capacitiesquicknote.util.PreferencesManager
+import com.dnnypck.capacitiesquicknotepro.ui.theme.CapacitiesQuickNoteTheme
+import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 
 class WidgetSpaceSelectionActivity : ComponentActivity() {
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID

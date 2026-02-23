@@ -1,13 +1,13 @@
-package com.dnnypck.capacitiesquicknote.ui.navigation
+package com.dnnypck.capacitiesquicknotepro.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.dnnypck.capacitiesquicknote.ui.main.MainScreen
-import com.dnnypck.capacitiesquicknote.ui.settings.SettingsScreen
-import com.dnnypck.capacitiesquicknote.util.ViewModelFactory
+import com.dnnypck.capacitiesquicknotepro.ui.main.MainScreen
+import com.dnnypck.capacitiesquicknotepro.ui.settings.SettingsScreen
+import com.dnnypck.capacitiesquicknotepro.util.ViewModelFactory
 
 sealed class Screen(val route: String) {
     object Main : Screen("main")

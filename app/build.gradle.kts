@@ -6,13 +6,13 @@ plugins {
 }
 
 android {
-    namespace = "com.dnnypck.capacitiesquicknote"
+    namespace = "com.dnnypck.capacitiesquicknotepro"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.dnnypck.capacitiesquicknote"
+        applicationId = "com.dnnypck.capacitiesquicknotepro"
         minSdk = 24
         targetSdk = 36
         versionCode = 8

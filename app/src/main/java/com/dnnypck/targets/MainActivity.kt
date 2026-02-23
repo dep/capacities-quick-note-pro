@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote
+package com.dnnypck.capacitiesquicknotepro
 
 import android.content.Intent
 import android.os.Bundle
@@ -7,10 +7,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import androidx.navigation.compose.rememberNavController
-import com.dnnypck.capacitiesquicknote.ui.navigation.AppNavigation
-import com.dnnypck.capacitiesquicknote.ui.theme.CapacitiesQuickNoteTheme
-import com.dnnypck.capacitiesquicknote.util.PreferencesManager
-import com.dnnypck.capacitiesquicknote.util.ViewModelFactory
+import com.dnnypck.capacitiesquicknotepro.ui.navigation.AppNavigation
+import com.dnnypck.capacitiesquicknotepro.ui.theme.CapacitiesQuickNoteTheme
+import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
+import com.dnnypck.capacitiesquicknotepro.util.ViewModelFactory
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModelFactory: ViewModelFactory

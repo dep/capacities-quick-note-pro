@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.widget
+package com.dnnypck.capacitiesquicknotepro.widget
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
@@ -16,9 +16,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.dnnypck.capacitiesquicknote.data.network.postToTarget
-import com.dnnypck.capacitiesquicknote.ui.theme.CapacitiesQuickNoteTheme
-import com.dnnypck.capacitiesquicknote.util.PreferencesManager
+import com.dnnypck.capacitiesquicknotepro.data.network.postToTarget
+import com.dnnypck.capacitiesquicknotepro.ui.theme.CapacitiesQuickNoteTheme
+import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

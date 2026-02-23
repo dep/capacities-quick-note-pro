@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote
+package com.dnnypck.capacitiesquicknotepro
 
 import org.junit.Test
 

@@ -1,7 +1,7 @@
-package com.dnnypck.capacitiesquicknote.ui.settings
+package com.dnnypck.capacitiesquicknotepro.ui.settings
 
 import androidx.lifecycle.ViewModel
-import com.dnnypck.capacitiesquicknote.util.PreferencesManager
+import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import com.dnnypck.targets.data.model.Space
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

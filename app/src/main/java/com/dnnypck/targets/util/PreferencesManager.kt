@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.util
+package com.dnnypck.capacitiesquicknotepro.util
 
 import android.content.Context
 import android.content.SharedPreferences

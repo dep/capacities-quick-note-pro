@@ -1,4 +1,4 @@
-package com.dnnypck.capacitiesquicknote.ui.settings
+package com.dnnypck.capacitiesquicknotepro.ui.settings
 
 import android.content.Context
 import android.net.Uri
