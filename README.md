@@ -1,4 +1,4 @@
-# Capacities Quick Note
+# Capacities Quick Note Pro
 
 A lightweight Android app for quickly capturing notes and sending them directly to your [Capacities.io](https://capacities.io) daily note. Built with Jetpack Compose and Material 3.
 
