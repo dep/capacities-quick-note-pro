@@ -1,5 +1,7 @@
 # Capacities Quick Note Pro
 
+🎉 Now globally available in the play store! https://play.google.com/store/apps/details?id=com.dnnypck.capacitiesquicknotepro&hl=en_US
+
 A lightweight Android app for quickly capturing notes and sending them directly to your [Capacities.io](https://capacities.io) daily note. Built with Jetpack Compose and Material 3.
 
 Testers Google Group: https://groups.google.com/g/capacities-quick-note-testers
