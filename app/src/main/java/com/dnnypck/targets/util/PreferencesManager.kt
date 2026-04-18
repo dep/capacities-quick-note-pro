@@ -136,10 +136,19 @@ class PreferencesManager(context: Context) {
         }
     }
 
+    fun isDemoMode(): Boolean {
+        return prefs.getBoolean(KEY_DEMO_MODE, false)
+    }
+
+    fun setDemoMode(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DEMO_MODE, enabled).apply()
+    }
+
     companion object {
         private const val KEY_API_KEY = "api_key"
         private const val KEY_SPACE_ID = "space_id"
         private const val KEY_SPACES = "spaces_json"
         private const val KEY_SELECTED_SPACE_ID = "selected_space_id"
+        private const val KEY_DEMO_MODE = "demo_mode"
     }
 }

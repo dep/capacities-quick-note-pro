@@ -15,8 +15,8 @@ android {
         applicationId = "com.dnnypck.capacitiesquicknotepro"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.2.2"
+        versionCode = 9
+        versionName = "1.2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
