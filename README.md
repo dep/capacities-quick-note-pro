@@ -12,10 +12,10 @@ Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capa
 
 - **Quick Note Capture**: Simple, distraction-free text input for rapid note-taking
 - **Share Target Integration**: Share text from any app directly to your Capacities daily note
-- **Multiple Space Support**: Settings allow you to configure multiple spaces and choose one upon posting
+- **Multiple Space Support**: Sign in once per space (Capacities OAuth is space-scoped) and choose a target when posting
 - **Auto-detect Web Links**: If you save a URL only, your note gets saved as a Capacities Weblink automatically
-- **Direct API Integration**: Seamlessly sends notes to Capacities via their official API
-- **Secure Credential Storage**: API keys stored securely using Android's SharedPreferences
+- **Direct API Integration**: Sends notes through the Capacities API v1
+- **OAuth sign-in**: Authorization Code + PKCE; tokens stored in EncryptedSharedPreferences
 - **Modern Material 3 UI**: Clean, intuitive interface following Material Design 3 guidelines
 - **Edge-to-Edge Design**: Modern Android UI with immersive edge-to-edge display
 - **Error Handling**: Detailed error messages to help troubleshoot API connectivity issues
@@ -25,39 +25,65 @@ Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capa
 
 - Android 7.0 (API 24) or higher
 - A [Capacities.io](https://capacities.io) Pro account
-- Capacities API key and Space ID
+- An OAuth `client_id` issued by Capacities (see [OAuth setup](#oauth-setup-required-before-sign-in-works) below)
 
 ## Setup
 
-### Getting Your Capacities Credentials
+1. Install the app (Play Store, or a debug/release APK from source).
+2. Open Settings and tap **Connect to Capacities**.
+3. Sign in on Capacities and choose the space this app may write to.
+4. Repeat **Connect another space** if you want more than one target.
 
-1. **API Key**:
-   - Open Capacities app
-   - Go to Settings → Capacities API
-   - Create a new API key
-   - Copy the generated key
+You're ready to start capturing quick notes.
 
-2. **Space ID**:
-   - Open Capacities app
-   - Go to Settings → Space settings
-   - Find and copy your Space ID
+Existing installs that used a pasted API token will be asked to sign in with OAuth. The old beta API (and user-level tokens) are no longer used.
 
-### Installing the App
+## OAuth setup (required before sign-in works)
 
-1. Download the latest APK from the [Releases](../../releases) page
-2. Install on your Android device
-3. Open the app and tap the settings icon (⚙️)
-4. Enter your API Key and Space ID
-5. Tap "Save Settings"
+Capacities only issues OAuth `client_id` values to registered integrations. This repo does **not** include a real client ID. Until one is configured, the Connect button explains that OAuth is not set up.
 
-You're ready to start capturing quick notes!
+### 1. Register the app with Capacities
+
+Email [team@capacities.io](mailto:team@capacities.io?subject=OAuth%20client%20registration) using the form in the [Capacities authentication docs](https://developers.capacities.io/api/overview/authentication). Suggested values:
+
+| Field | Value |
+| --- | --- |
+| Integration name | Capacities Quick Note Pro |
+| Short description | Android app that appends quick notes and URLs to a Capacities space |
+| Homepage URL | https://play.google.com/store/apps/details?id=com.dnnypck.capacitiesquicknotepro |
+| Redirect URI | `com.dnnypck.capacitiesquicknotepro://oauth/callback` |
+| Scopes needed | `api:read`, `api:write`, `offline_access` |
+
+Capacities replies with a stable `client_id`. No client secret is issued (public native client + PKCE).
+
+If Capacities requires an `https` redirect URI instead of a custom scheme, change `CAPACITIES_REDIRECT_SCHEME` / `HOST` / `PATH` (see below) to match what you register, then rebuild.
+
+### 2. Put the client ID in the build
+
+Copy `local.properties.example` to `local.properties` (gitignored) and set:
+
+```
+CAPACITIES_CLIENT_ID=the-id-capacities-emailed-you
+```
+
+You can also pass `-PCAPACITIES_CLIENT_ID=...` or set the same key in `gradle.properties` / CI secrets.
+
+Optional overrides (must match the registered redirect URI and `AndroidManifest.xml` intent-filter):
+
+```
+CAPACITIES_REDIRECT_SCHEME=com.dnnypck.capacitiesquicknotepro
+CAPACITIES_REDIRECT_HOST=oauth
+CAPACITIES_REDIRECT_PATH=/callback
+```
+
+The compiled default redirect URI is `com.dnnypck.capacitiesquicknotepro://oauth/callback`.
 
 ## Usage
 
 ### Standalone Mode
 
 1. Open the Capacities Quick Note app
-2. Select your target space from the dropdown (if you have multiple spaces configured)
+2. Select your target space from the dropdown (if you have multiple spaces connected)
 3. Type your note in the text field
 4. Tap "Send" to save to Capacities
 5. Your note will be appended to today's daily note in Capacities
@@ -94,6 +120,7 @@ When you enter only a URL (e.g., `https://example.com`), the app automatically s
 - Android Studio Ladybug or newer
 - JDK 11 or higher
 - Android SDK with API 36
+- A Capacities OAuth `client_id` if you want sign-in to succeed (see above)
 
 ### Build Steps
 
@@ -133,6 +160,8 @@ The release APK will be at: `app/build/outputs/apk/release/app-release.apk`
 - **UI Framework**: Jetpack Compose
 - **Architecture**: MVVM (Model-View-ViewModel)
 - **HTTP Client**: Ktor
+- **Auth**: OAuth 2.0 Authorization Code + PKCE (Custom Tabs)
+- **Secure storage**: EncryptedSharedPreferences (Android Keystore)
 - **Navigation**: Jetpack Navigation Compose
 - **Serialization**: kotlinx.serialization
 - **Build System**: Gradle (Kotlin DSL)
@@ -145,29 +174,25 @@ The release APK will be at: `app/build/outputs/apk/release/app-release.apk`
 app/src/main/java/com/dnnypck/capacitiesquicknote/
 ├── MainActivity.kt                    # Main activity, handles shared text intents
 ├── data/
-│   └── network/
-│       ├── HttpClient.kt             # Ktor HTTP client configuration
-│       └── PostRequest.kt            # API request logic
+│   ├── oauth/                        # PKCE, token store, redirect activity
+│   ├── network/
+│   │   ├── HttpClient.kt             # Ktor HTTP client configuration
+│   │   └── CapacitiesApi.kt          # Capacities API v1 calls
+│   └── repository/
+│       └── CapacitiesRepository.kt   # Send notes with token refresh
 ├── ui/
 │   ├── main/
 │   │   ├── MainScreen.kt            # Main note input screen
 │   │   ├── MainViewModel.kt         # Main screen business logic
 │   │   └── components/
-│   │       ├── ContentTextField.kt  # Custom text input component
-│   │       └── SendButton.kt        # Custom send button component
 │   ├── settings/
-│   │   ├── SettingsScreen.kt       # Settings configuration screen
-│   │   └── SettingsViewModel.kt    # Settings business logic
+│   │   ├── SettingsScreen.kt       # OAuth connect / disconnect
+│   │   └── SettingsViewModel.kt
 │   ├── navigation/
-│   │   └── Navigation.kt           # Navigation graph setup
 │   └── theme/
-│       ├── Color.kt                # Material 3 color scheme
-│       ├── Theme.kt                # App theme configuration
-│       └── Type.kt                 # Typography definitions
 └── util/
-    ├── PreferencesManager.kt       # SharedPreferences wrapper
-    └── ViewModelFactory.kt         # ViewModel instantiation
-
+    ├── PreferencesManager.kt       # Spaces + EncryptedSharedPreferences tokens
+    └── ViewModelFactory.kt
 ```
 
 ## Development
@@ -185,42 +210,44 @@ This project follows standard Kotlin coding conventions and Android best practic
 
 ## API Integration
 
-The app intelligently uses two Capacities API endpoints:
+The app uses Capacities API v1 (`X-Capacities-Api-Version: 1.0.0`). Access tokens are space-scoped, so requests no longer send `spaceId`.
 
-### For URL-only content:
-- **Endpoint**: `https://api.capacities.io/save-weblink`
-- **Method**: POST
-- **Authentication**: Bearer token (API key)
-- **Required Fields**:
-  - `spaceId`: Your Capacities space identifier
-  - `url`: The URL to save as a weblink
+### For URL-only content
 
-### For text/markdown content:
-- **Endpoint**: `https://api.capacities.io/save-to-daily-note`
-- **Method**: POST
-- **Authentication**: Bearer token (API key)
-- **Required Fields**:
-  - `spaceId`: Your Capacities space identifier
-  - `mdText`: Markdown-formatted note content
-  - `origin`: Set to "commandPalette"
+- **Endpoint**: `POST https://api.capacities.io/object/url`
+- **Authentication**: Bearer OAuth access token
+- **Body**: `{ "url": "https://example.com" }`
 
-The app automatically detects if your input is only a URL and uses the appropriate endpoint.
+### For text/markdown content
+
+- **Endpoint**: `POST https://api.capacities.io/blocks/daily-note/append`
+- **Authentication**: Bearer OAuth access token
+- **Body**: `{ "markdown": "note text" }`
+
+After OAuth, the app calls `GET /space` to store the connected space's id and title.
+
+Access tokens expire after one hour. The app refreshes them with `offline_access` (refresh tokens rotate on every use). Sign-out calls `POST /oauth/revoke`.
 
 ## Privacy & Security
 
-- API credentials are stored locally on your device using Android's SharedPreferences
-- All communication with Capacities API uses HTTPS
-- No data is collected, stored, or shared by this app beyond what you explicitly send to Capacities
-- The app requires only internet permission to communicate with the Capacities API
+- OAuth tokens are stored on-device with EncryptedSharedPreferences (Android Keystore). Auto-backup excludes that file.
+- Manual Backup/Restore still writes a JSON file that includes tokens — treat it like a password.
+- All communication with Capacities uses HTTPS.
+- No data is collected, stored, or shared by this app beyond what you explicitly send to Capacities.
+- The app requires only internet permission to communicate with the Capacities API.
 
 ## Troubleshooting
 
-### "Failed to send to Capacities" Error
+### "Failed to send to Capacities" / 401
 
-- Verify your API key and Space ID are correct in Settings
+- Open Settings and tap **Connect to Capacities** (or reconnect that space)
 - Check your internet connection
-- Ensure your Capacities API key has the necessary permissions
+- Confirm the Capacities consent screen granted `api:write`
 - Review the detailed error message displayed in the app
+
+### Connect button says OAuth isn't configured
+
+- The build has an empty `CAPACITIES_CLIENT_ID`. Register the app with Capacities and rebuild.
 
 ### Share Target Not Appearing
 
@@ -230,8 +257,8 @@ The app automatically detects if your input is only a URL and uses the appropria
 
 ## Version History
 
-- **v1.0.3** (Build 4) - Current release
-- Initial public release with core functionality
+- **v1.3.0** (Build 10) - Capacities API v1 + OAuth (PKCE)
+- **v1.0.3** (Build 4) - Earlier public release
 
 ## Contributing
 

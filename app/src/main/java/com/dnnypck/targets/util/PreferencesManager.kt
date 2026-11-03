@@ -2,10 +2,11 @@ package com.dnnypck.capacitiesquicknotepro.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.dnnypck.capacitiesquicknotepro.data.oauth.SecurePreferences
+import com.dnnypck.capacitiesquicknotepro.data.oauth.TokenStore
 import com.dnnypck.targets.data.model.BackupData
 import com.dnnypck.targets.data.model.Space
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
 class PreferencesManager(context: Context) {
@@ -16,6 +17,8 @@ class PreferencesManager(context: Context) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    val tokenStore: TokenStore = TokenStore(SecurePreferences.create(context), json)
+
     /**
      * Removes all whitespace (spaces, tabs, and new lines) from a credential.
      * API keys and Space IDs never contain whitespace, so this strips stray
@@ -25,16 +28,12 @@ class PreferencesManager(context: Context) {
         return value.filterNot { it.isWhitespace() }
     }
 
-    fun saveApiKey(apiKey: String) {
-        prefs.edit().putString(KEY_API_KEY, sanitizeCredential(apiKey)).apply()
-    }
-
     fun getApiKey(): String {
         return prefs.getString(KEY_API_KEY, "") ?: ""
     }
 
-    fun saveSpaceId(spaceId: String) {
-        prefs.edit().putString(KEY_SPACE_ID, sanitizeCredential(spaceId)).apply()
+    fun clearLegacyApiKey() {
+        prefs.edit().remove(KEY_API_KEY).apply()
     }
 
     fun getSpaceId(): String {
@@ -42,13 +41,15 @@ class PreferencesManager(context: Context) {
     }
 
     fun hasRequiredSettings(): Boolean {
-        return getApiKey().isNotBlank() && getSpaces().isNotEmpty()
+        if (tokenStore.getAll().isEmpty()) return false
+        return getSpaces().any { tokenStore.get(it.id) != null }
     }
 
-    // Multiple spaces support
+    fun needsOAuthMigration(): Boolean {
+        return getApiKey().isNotBlank() && !hasRequiredSettings()
+    }
+
     fun saveSpaces(spaces: List<Space>) {
-        // Strip whitespace/new lines from every Space ID before persisting so
-        // pasted IDs are always stored clean, whatever path they came in through.
         val sanitizedSpaces = spaces.map { it.copy(id = sanitizeCredential(it.id)) }
         val jsonString = json.encodeToString(sanitizedSpaces)
         prefs.edit().putString(KEY_SPACES, jsonString).apply()
@@ -58,7 +59,7 @@ class PreferencesManager(context: Context) {
         val jsonString = prefs.getString(KEY_SPACES, null) ?: return emptyList()
         return try {
             json.decodeFromString<List<Space>>(jsonString)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
@@ -69,12 +70,27 @@ class PreferencesManager(context: Context) {
         saveSpaces(currentSpaces)
     }
 
+    fun upsertConnectedSpace(space: Space): Space {
+        val current = getSpaces()
+        val existing = current.firstOrNull { it.id == space.id }
+        return if (existing != null) {
+            val merged = existing.copy(
+                nickname = existing.nickname?.takeIf { it.isNotBlank() } ?: space.nickname
+            )
+            saveSpaces(current.map { if (it.id == space.id) merged else it })
+            merged
+        } else {
+            addSpace(space)
+            space
+        }
+    }
+
     fun removeSpace(spaceId: String) {
         val currentSpaces = getSpaces().filter { it.id != spaceId }
         saveSpaces(currentSpaces)
-        // If deleted space was selected, clear selection
         if (getSelectedSpaceId() == spaceId) {
             clearSelectedSpaceId()
+            currentSpaces.firstOrNull()?.id?.let { saveSelectedSpaceId(it) }
         }
     }
 
@@ -101,7 +117,6 @@ class PreferencesManager(context: Context) {
         val legacySpaceId = prefs.getString(KEY_SPACE_ID, null)
         if (legacySpaceId != null && legacySpaceId.isNotBlank()) {
             val existingSpaces = getSpaces()
-            // Only migrate if no spaces exist yet
             if (existingSpaces.isEmpty()) {
                 val migratedSpace = Space(
                     id = legacySpaceId,
@@ -110,39 +125,41 @@ class PreferencesManager(context: Context) {
                 addSpace(migratedSpace)
                 saveSelectedSpaceId(legacySpaceId)
             }
-            // Clear legacy key
             prefs.edit().remove(KEY_SPACE_ID).apply()
         }
     }
 
-    // Backup and restore
     fun createBackup(): String {
         val backupData = BackupData(
-            apiKey = getApiKey(),
+            apiKey = "",
             spaces = getSpaces(),
-            selectedSpaceId = getSelectedSpaceId()
+            selectedSpaceId = getSelectedSpaceId(),
+            connections = tokenStore.getAll()
         )
         return json.encodeToString(backupData)
     }
 
-    fun restoreFromBackup(backupJson: String): Result<Unit> {
+    fun restoreFromBackup(backupJson: String): Result<RestoreResult> {
         return try {
             val backupData = json.decodeFromString<BackupData>(backupJson)
 
-            // Restore API key
-            saveApiKey(backupData.apiKey)
-
-            // Restore spaces
             saveSpaces(backupData.spaces)
 
-            // Restore selected space if it exists in the restored spaces
             backupData.selectedSpaceId?.let { selectedId ->
                 if (backupData.spaces.any { it.id == selectedId }) {
                     saveSelectedSpaceId(selectedId)
                 }
             }
 
-            Result.success(Unit)
+            if (backupData.connections.isNotEmpty()) {
+                tokenStore.replaceAll(backupData.connections)
+                clearLegacyApiKey()
+                Result.success(RestoreResult.OAuthConnectionsRestored)
+            } else {
+                tokenStore.clear()
+                clearLegacyApiKey()
+                Result.success(RestoreResult.LegacyBackupNeedsSignIn)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -154,6 +171,11 @@ class PreferencesManager(context: Context) {
 
     fun setDemoMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_DEMO_MODE, enabled).apply()
+    }
+
+    enum class RestoreResult {
+        OAuthConnectionsRestored,
+        LegacyBackupNeedsSignIn
     }
 
     companion object {

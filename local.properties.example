@@ -1,0 +1,16 @@
+## Copy this file to local.properties (gitignored) or add the same keys
+## to gradle.properties / CI secrets. Do not commit a real client ID if you
+## prefer to keep it out of the repo; the value is a public OAuth client ID
+## (no secret is issued) so committing it later is also fine.
+##
+## See README.md → "OAuth setup (required before sign-in works)".
+
+sdk.dir=/path/to/android/sdk
+
+# Issued by Capacities after you register this app (email team@capacities.io).
+CAPACITIES_CLIENT_ID=
+
+# Optional overrides. Defaults match the intent-filter in AndroidManifest.xml.
+# CAPACITIES_REDIRECT_SCHEME=com.dnnypck.capacitiesquicknotepro
+# CAPACITIES_REDIRECT_HOST=oauth
+# CAPACITIES_REDIRECT_PATH=/callback

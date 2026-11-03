@@ -9,7 +9,7 @@ import android.os.IBinder
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.dnnypck.capacitiesquicknotepro.R
-import com.dnnypck.capacitiesquicknotepro.data.network.postToTarget
+import com.dnnypck.capacitiesquicknotepro.data.repository.CapacitiesRepository
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,32 +36,15 @@ class WidgetService : Service() {
     private fun sendNote(noteText: String) {
         serviceScope.launch {
             val preferencesManager = PreferencesManager(applicationContext)
-            val apiKey = preferencesManager.getApiKey()
             val selectedSpaceId = preferencesManager.getSelectedSpaceId()
 
-            if (apiKey.isBlank() || selectedSpaceId == null) {
-                showToast("Please configure settings in the app first")
+            if (!preferencesManager.hasRequiredSettings() || selectedSpaceId == null) {
+                showToast("Please connect Capacities in the app first")
                 return@launch
             }
 
-            val headers = mapOf(
-                "Authorization" to "Bearer $apiKey",
-                "Content-Type" to "application/json"
-            )
-
-            val body = """
-                {
-                    "spaceId": "$selectedSpaceId",
-                    "mdText": "${noteText.replace("\"", "\\\"").replace("\n", "\\n")}",
-                    "origin": "commandPalette"
-                }
-            """.trimIndent()
-
-            val result = postToTarget(
-                url = "https://api.capacities.io/save-to-daily-note",
-                headers = headers,
-                body = body
-            )
+            val result = CapacitiesRepository(preferencesManager.tokenStore)
+                .sendNote(selectedSpaceId, noteText)
 
             result.fold(
                 onSuccess = {
