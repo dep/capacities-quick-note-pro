@@ -53,7 +53,7 @@ class SettingsViewModel(
         if (!OAuthConfig.isConfigured) {
             _state.update {
                 it.copy(
-                    message = "OAuth isn't configured yet. Register this app with Capacities and set CAPACITIES_CLIENT_ID. Redirect URI: ${OAuthConfig.redirectUri}"
+                    message = "OAuth client ID is empty. Remove any blank CAPACITIES_CLIENT_ID override so the build uses capacities_api_quick_note_pro."
                 )
             }
             return

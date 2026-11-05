@@ -25,7 +25,6 @@ Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capa
 
 - Android 7.0 (API 24) or higher
 - A [Capacities.io](https://capacities.io) Pro account
-- An OAuth `client_id` issued by Capacities (see [OAuth setup](#oauth-setup-required-before-sign-in-works) below)
 
 ## Setup
 
@@ -38,45 +37,25 @@ You're ready to start capturing quick notes.
 
 Existing installs that used a pasted API token will be asked to sign in with OAuth. The old beta API (and user-level tokens) are no longer used.
 
-## OAuth setup (required before sign-in works)
+## OAuth
 
-Capacities only issues OAuth `client_id` values to registered integrations. This repo does **not** include a real client ID. Until one is configured, the Connect button explains that OAuth is not set up.
+Sign-in uses Capacities OAuth 2.0 (authorization code + PKCE). No manual client ID setup is needed.
 
-### 1. Register the app with Capacities
-
-Email [team@capacities.io](mailto:team@capacities.io?subject=OAuth%20client%20registration) using the form in the [Capacities authentication docs](https://developers.capacities.io/api/overview/authentication). Suggested values:
-
-| Field | Value |
+| Setting | Value |
 | --- | --- |
-| Integration name | Capacities Quick Note Pro |
-| Short description | Android app that appends quick notes and URLs to a Capacities space |
-| Homepage URL | https://play.google.com/store/apps/details?id=com.dnnypck.capacitiesquicknotepro |
+| Client ID | `capacities_api_quick_note_pro` (public client, no secret) |
 | Redirect URI | `com.dnnypck.capacitiesquicknotepro://oauth/callback` |
-| Scopes needed | `api:read`, `api:write`, `offline_access` |
+| Scopes | `api:read`, `api:write`, `offline_access` |
 
-Capacities replies with a stable `client_id`. No client secret is issued (public native client + PKCE).
+That client ID is the Gradle default. You can override it with `CAPACITIES_CLIENT_ID` in `local.properties`, `gradle.properties`, or `-P` if you ever need a different registration. Blank values are ignored so they do not wipe the default.
 
-If Capacities requires an `https` redirect URI instead of a custom scheme, change `CAPACITIES_REDIRECT_SCHEME` / `HOST` / `PATH` (see below) to match what you register, then rebuild.
-
-### 2. Put the client ID in the build
-
-Copy `local.properties.example` to `local.properties` (gitignored) and set:
-
-```
-CAPACITIES_CLIENT_ID=the-id-capacities-emailed-you
-```
-
-You can also pass `-PCAPACITIES_CLIENT_ID=...` or set the same key in `gradle.properties` / CI secrets.
-
-Optional overrides (must match the registered redirect URI and `AndroidManifest.xml` intent-filter):
+Optional redirect overrides (must match the registered URI and `AndroidManifest.xml`):
 
 ```
 CAPACITIES_REDIRECT_SCHEME=com.dnnypck.capacitiesquicknotepro
 CAPACITIES_REDIRECT_HOST=oauth
 CAPACITIES_REDIRECT_PATH=/callback
 ```
-
-The compiled default redirect URI is `com.dnnypck.capacitiesquicknotepro://oauth/callback`.
 
 ## Usage
 
@@ -120,7 +99,6 @@ When you enter only a URL (e.g., `https://example.com`), the app automatically s
 - Android Studio Ladybug or newer
 - JDK 11 or higher
 - Android SDK with API 36
-- A Capacities OAuth `client_id` if you want sign-in to succeed (see above)
 
 ### Build Steps
 
@@ -244,10 +222,6 @@ Access tokens expire after one hour. The app refreshes them with `offline_access
 - Check your internet connection
 - Confirm the Capacities consent screen granted `api:write`
 - Review the detailed error message displayed in the app
-
-### Connect button says OAuth isn't configured
-
-- The build has an empty `CAPACITIES_CLIENT_ID`. Register the app with Capacities and rebuild.
 
 ### Share Target Not Appearing
 

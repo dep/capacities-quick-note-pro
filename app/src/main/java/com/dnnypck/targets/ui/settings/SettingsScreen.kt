@@ -204,7 +204,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "The app developer must register this integration with Capacities and put the issued client ID in local.properties as CAPACITIES_CLIENT_ID. Redirect URI to register:\n${state.redirectUri}",
+                            text = "This build has an empty CAPACITIES_CLIENT_ID override. Remove it so the app uses the default public client ID capacities_api_quick_note_pro.\nRedirect URI: ${state.redirectUri}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )

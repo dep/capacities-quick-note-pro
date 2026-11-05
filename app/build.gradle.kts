@@ -16,15 +16,24 @@ data class OAuthBuildProperties(
     val redirectUri: String = "$redirectScheme://$redirectHost$redirectPath"
 }
 
+/** Public Capacities OAuth client ID (PKCE, no secret). Overridable via local.properties. */
+val defaultCapacitiesClientId = "capacities_api_quick_note_pro"
+
+fun firstNonBlank(vararg values: String?): String? {
+    return values.firstOrNull { !it.isNullOrBlank() }
+}
+
 fun loadOAuthProperties(): OAuthBuildProperties {
     val props = Properties()
     val localFile = rootProject.file("local.properties")
     if (localFile.exists()) {
         localFile.inputStream().use { props.load(it) }
     }
-    val clientId = props.getProperty("CAPACITIES_CLIENT_ID")
-        ?: (project.findProperty("CAPACITIES_CLIENT_ID") as String?)
-        ?: ""
+    val clientId = firstNonBlank(
+        props.getProperty("CAPACITIES_CLIENT_ID"),
+        project.findProperty("CAPACITIES_CLIENT_ID") as String?,
+        defaultCapacitiesClientId
+    ) ?: defaultCapacitiesClientId
     val scheme = props.getProperty("CAPACITIES_REDIRECT_SCHEME")
         ?: (project.findProperty("CAPACITIES_REDIRECT_SCHEME") as String?)
         ?: "com.dnnypck.capacitiesquicknotepro"

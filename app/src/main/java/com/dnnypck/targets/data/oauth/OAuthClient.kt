@@ -163,7 +163,7 @@ class OAuthClient(
         val error = parsed?.error
         val description = parsed?.errorDescription
         val meaning = when (error) {
-            "invalid_client" -> "This app isn't registered with Capacities yet. The developer needs to set CAPACITIES_CLIENT_ID after Capacities issues one."
+            "invalid_client" -> "Capacities didn't recognize this app's OAuth client ID. Rebuild without overriding CAPACITIES_CLIENT_ID, or confirm Capacities still has capacities_api_quick_note_pro registered."
             "invalid_grant" -> "Sign-in expired or was revoked. Open Settings and connect to Capacities again."
             "unauthorized_client" -> "The redirect URI isn't on the Capacities allow-list. Register ${OAuthConfig.redirectUri} with the Capacities team."
             "invalid_scope" -> "Capacities rejected the requested permissions. Ask the Capacities team to allow api:read, api:write, and offline_access."

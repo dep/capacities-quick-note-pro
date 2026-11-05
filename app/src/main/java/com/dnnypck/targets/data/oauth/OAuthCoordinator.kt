@@ -19,9 +19,8 @@ class OAuthCoordinator(
         if (!OAuthConfig.isConfigured) {
             return Result.failure(
                 Exception(
-                    "OAuth isn't configured yet. Register this app with Capacities " +
-                        "(team@capacities.io) and set CAPACITIES_CLIENT_ID in local.properties. " +
-                        "See README.md for the exact fields to send."
+                    "OAuth client ID is empty. Remove any blank CAPACITIES_CLIENT_ID " +
+                        "override so the build uses capacities_api_quick_note_pro."
                 )
             )
         }
