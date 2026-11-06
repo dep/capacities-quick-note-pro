@@ -61,6 +61,7 @@ import com.dnnypck.targets.data.model.Space
 fun MainScreen(
     viewModel: MainViewModel,
     onNavigateToSettings: () -> Unit,
+    onNavigateToSavedNotes: () -> Unit,
     sharedText: String? = null,
     oauthMessage: String? = null,
     onOauthMessageShown: () -> Unit = {}
@@ -73,6 +74,8 @@ fun MainScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshSpaces()
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
+                viewModel.persistDraftNow()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -81,7 +84,7 @@ fun MainScreen(
 
     LaunchedEffect(sharedText) {
         sharedText?.let { text ->
-            viewModel.updateContent(text)
+            viewModel.applyIncomingText(text)
         }
     }
 
@@ -106,6 +109,15 @@ fun MainScreen(
             TopAppBar(
                 title = { Text("Capacities Quick Note") },
                 actions = {
+                    TextButton(onClick = onNavigateToSavedNotes) {
+                        Text(
+                            if (state.unresolvedCount > 0) {
+                                "Saved (${state.unresolvedCount})"
+                            } else {
+                                "Saved notes"
+                            }
+                        )
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -123,6 +135,27 @@ fun MainScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+                if (state.unresolvedCount > 0) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "You have ${state.unresolvedCount} note(s) that weren't confirmed with Capacities.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            TextButton(onClick = onNavigateToSavedNotes) {
+                                Text("Open Saved notes")
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 if (state.hasCredentials || state.isDemoMode) {
                 if (state.needsOAuthMigration && !state.isDemoMode) {
                     Card(

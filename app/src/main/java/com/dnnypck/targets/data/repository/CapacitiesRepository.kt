@@ -3,6 +3,8 @@ package com.dnnypck.capacitiesquicknotepro.data.repository
 import com.dnnypck.capacitiesquicknotepro.data.network.ApiErrors
 import com.dnnypck.capacitiesquicknotepro.data.network.CapacitiesApi
 import com.dnnypck.capacitiesquicknotepro.data.network.NoteContent
+import com.dnnypck.capacitiesquicknotepro.data.notes.DeliveryClassifier
+import com.dnnypck.capacitiesquicknotepro.data.notes.NoteSender
 import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthClient
 import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthConfig
 import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthEndpoints
@@ -18,6 +20,10 @@ class CapacitiesRepository(
 ) {
     private val refreshMutex = Mutex()
     @Volatile private var cachedEndpoints: OAuthEndpoints? = null
+
+    fun asNoteSender(): NoteSender = NoteSender { spaceId, content ->
+        DeliveryClassifier.fromResult(sendNote(spaceId, content))
+    }
 
     suspend fun sendNote(spaceId: String, content: String): Result<Unit> {
         val trimmed = content.trim()

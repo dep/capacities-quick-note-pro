@@ -7,6 +7,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import androidx.navigation.compose.rememberNavController
+import com.dnnypck.capacitiesquicknotepro.data.notes.FileNoteStorage
+import com.dnnypck.capacitiesquicknotepro.data.notes.NoteOutbox
+import com.dnnypck.capacitiesquicknotepro.data.notes.SendCoordinator
 import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthCoordinator
 import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthRedirectActivity
 import com.dnnypck.capacitiesquicknotepro.data.repository.CapacitiesRepository
@@ -27,7 +30,15 @@ class MainActivity : ComponentActivity() {
         preferencesManager.migrateFromLegacySpaceId()
         val repository = CapacitiesRepository(preferencesManager.tokenStore)
         val oauthCoordinator = OAuthCoordinator(preferencesManager)
-        viewModelFactory = ViewModelFactory(preferencesManager, repository, oauthCoordinator)
+        val outbox = NoteOutbox(FileNoteStorage.inAppFiles(applicationContext.filesDir))
+        val sendCoordinator = SendCoordinator(outbox, repository.asNoteSender())
+        viewModelFactory = ViewModelFactory(
+            preferencesManager,
+            repository,
+            oauthCoordinator,
+            outbox,
+            sendCoordinator
+        )
 
         handleIntent(intent)
 
