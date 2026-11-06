@@ -136,10 +136,10 @@ class SettingsViewModel(
             onSuccess = { restoreResult ->
                 loadSettings()
                 val message = when (restoreResult) {
-                    PreferencesManager.RestoreResult.OAuthConnectionsRestored ->
-                        "Settings restored. Connected spaces were imported."
-                    PreferencesManager.RestoreResult.LegacyBackupNeedsSignIn ->
-                        "Settings restored, but that backup used an API token. Sign in with Capacities to reconnect each space."
+                    PreferencesManager.RestoreResult.SignedInSpacesKept ->
+                        "Settings restored. You are still signed in for spaces that were already connected."
+                    PreferencesManager.RestoreResult.NeedsSignIn ->
+                        "Settings restored. Sign in with Capacities to connect each space."
                 }
                 _state.update { it.copy(message = message) }
             },

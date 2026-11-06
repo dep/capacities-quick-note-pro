@@ -269,7 +269,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Backups include OAuth tokens for your connected spaces. Treat the file like a password.",
+                text = "Backups save spaces and nicknames only — not your Capacities sign-in. Restoring on a new device means you'll need to connect again.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

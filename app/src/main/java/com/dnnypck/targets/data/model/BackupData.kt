@@ -12,10 +12,8 @@ data class BackupData(
     val connections: List<OAuthConnection> = emptyList()
 ) {
     companion object {
-        const val CURRENT_VERSION = 2
+        const val CURRENT_VERSION = 3
         const val LEGACY_API_TOKEN_VERSION = 1
+        const val LEGACY_OAUTH_TOKEN_VERSION = 2
     }
-
-    val isLegacyApiTokenBackup: Boolean
-        get() = connections.isEmpty() && apiKey.isNotBlank()
 }

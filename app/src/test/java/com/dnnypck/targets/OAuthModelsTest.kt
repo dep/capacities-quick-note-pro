@@ -1,6 +1,7 @@
 package com.dnnypck.capacitiesquicknotepro
 
 import com.dnnypck.targets.data.model.BackupData
+import com.dnnypck.targets.data.model.BackupSupport
 import com.dnnypck.targets.data.model.OAuthConnection
 import com.dnnypck.targets.data.model.Space
 import kotlinx.serialization.encodeToString
@@ -37,36 +38,29 @@ class OAuthModelsTest {
     }
 
     @Test
-    fun legacyBackupWithoutConnectionsIsDetected() {
+    fun legacyBackupStillDecodesApiKeyButRestoreMustSanitize() {
         val legacy = """
             {"apiKey":"cap-api-old","spaces":[{"id":"space-1","nickname":"Notes"}],"selectedSpaceId":"space-1","backupVersion":1,"backupTimestamp":1}
         """.trimIndent()
         val backup = json.decodeFromString<BackupData>(legacy)
-        assertTrue(backup.isLegacyApiTokenBackup)
         assertEquals("cap-api-old", backup.apiKey)
         assertEquals(1, backup.spaces.size)
         assertTrue(backup.connections.isEmpty())
+        val sanitized = BackupSupport.sanitize(backup)
+        assertEquals("", sanitized.apiKey)
     }
 
     @Test
-    fun oauthBackupRoundTrip() {
+    fun spaceSettingsRoundTripWithoutCredentials() {
         val original = BackupData(
             spaces = listOf(Space(id = "abc", nickname = "Work")),
-            selectedSpaceId = "abc",
-            connections = listOf(
-                OAuthConnection(
-                    spaceId = "abc",
-                    accessToken = "at",
-                    refreshToken = "rt",
-                    expiresAtEpochSeconds = 99,
-                    scope = "api:read api:write offline_access"
-                )
-            )
+            selectedSpaceId = "abc"
         )
         val decoded = json.decodeFromString<BackupData>(json.encodeToString(original))
-        assertFalse(decoded.isLegacyApiTokenBackup)
-        assertEquals("abc", decoded.connections.single().spaceId)
-        assertEquals("rt", decoded.connections.single().refreshToken)
+        assertEquals("abc", decoded.spaces.single().id)
         assertEquals("Work", decoded.spaces.single().nickname)
+        assertEquals("abc", decoded.selectedSpaceId)
+        assertEquals("", decoded.apiKey)
+        assertTrue(decoded.connections.isEmpty())
     }
 }

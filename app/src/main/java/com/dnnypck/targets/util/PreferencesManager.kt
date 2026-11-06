@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.dnnypck.capacitiesquicknotepro.data.oauth.SecurePreferences
 import com.dnnypck.capacitiesquicknotepro.data.oauth.TokenStore
 import com.dnnypck.targets.data.model.BackupData
+import com.dnnypck.targets.data.model.BackupSupport
 import com.dnnypck.targets.data.model.Space
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -130,11 +131,9 @@ class PreferencesManager(context: Context) {
     }
 
     fun createBackup(): String {
-        val backupData = BackupData(
-            apiKey = "",
+        val backupData = BackupSupport.createExport(
             spaces = getSpaces(),
-            selectedSpaceId = getSelectedSpaceId(),
-            connections = tokenStore.getAll()
+            selectedSpaceId = getSelectedSpaceId()
         )
         return json.encodeToString(backupData)
     }
@@ -142,24 +141,31 @@ class PreferencesManager(context: Context) {
     fun restoreFromBackup(backupJson: String): Result<RestoreResult> {
         return try {
             val backupData = json.decodeFromString<BackupData>(backupJson)
+            val plan = BackupSupport.planRestore(
+                backup = backupData,
+                existingTokenSpaceIds = tokenStore.getAll().map { it.spaceId }.toSet(),
+                currentSelectedSpaceId = getSelectedSpaceId()
+            )
 
-            saveSpaces(backupData.spaces)
-
-            backupData.selectedSpaceId?.let { selectedId ->
-                if (backupData.spaces.any { it.id == selectedId }) {
-                    saveSelectedSpaceId(selectedId)
-                }
-            }
-
-            if (backupData.connections.isNotEmpty()) {
-                tokenStore.replaceAll(backupData.connections)
-                clearLegacyApiKey()
-                Result.success(RestoreResult.OAuthConnectionsRestored)
+            saveSpaces(plan.spaces)
+            if (plan.selectedSpaceId != null) {
+                saveSelectedSpaceId(plan.selectedSpaceId)
             } else {
-                tokenStore.clear()
-                clearLegacyApiKey()
-                Result.success(RestoreResult.LegacyBackupNeedsSignIn)
+                clearSelectedSpaceId()
             }
+
+            // Never import credentials from the file. Export does not sign out;
+            // restore keeps tokens for spaces that still exist and drops the rest.
+            clearLegacyApiKey()
+            plan.tokenSpaceIdsToDrop.forEach { tokenStore.remove(it) }
+
+            Result.success(
+                if (plan.needsSignIn) {
+                    RestoreResult.NeedsSignIn
+                } else {
+                    RestoreResult.SignedInSpacesKept
+                }
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -174,8 +180,8 @@ class PreferencesManager(context: Context) {
     }
 
     enum class RestoreResult {
-        OAuthConnectionsRestored,
-        LegacyBackupNeedsSignIn
+        SignedInSpacesKept,
+        NeedsSignIn
     }
 
     companion object {

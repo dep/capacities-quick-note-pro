@@ -19,7 +19,7 @@ Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capa
 - **Modern Material 3 UI**: Clean, intuitive interface following Material Design 3 guidelines
 - **Edge-to-Edge Design**: Modern Android UI with immersive edge-to-edge display
 - **Error Handling**: Detailed error messages to help troubleshoot API connectivity issues
-- **Backup/Restore**: Back up your settings to your phone, Google Drive, etc, and restore them later or on another device
+- **Backup/Restore**: Back up spaces and nicknames (not Capacities sign-in) and restore them later or on another device
 
 ## Requirements
 
@@ -209,7 +209,7 @@ Access tokens expire after one hour. The app refreshes them with `offline_access
 ## Privacy & Security
 
 - OAuth tokens are stored on-device with EncryptedSharedPreferences (Android Keystore). Auto-backup excludes that file.
-- Manual Backup/Restore still writes a JSON file that includes tokens — treat it like a password.
+- Manual Backup/Restore saves spaces and nicknames only. It never writes OAuth tokens or API keys. After restore on a new device, connect to Capacities again. Exporting a backup does not sign you out.
 - All communication with Capacities uses HTTPS.
 - No data is collected, stored, or shared by this app beyond what you explicitly send to Capacities.
 - The app requires only internet permission to communicate with the Capacities API.
@@ -222,6 +222,11 @@ Access tokens expire after one hour. The app refreshes them with `offline_access
 - Check your internet connection
 - Confirm the Capacities consent screen granted `api:write`
 - Review the detailed error message displayed in the app
+
+### Restored a backup and notes won't send
+
+- Manual backups do not include Capacities sign-in. Open Settings and tap **Connect to Capacities** for each space.
+- Exporting a backup does not sign you out of this device.
 
 ### Share Target Not Appearing
 
