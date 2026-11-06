@@ -18,7 +18,9 @@ sealed class Screen(val route: String) {
 fun AppNavigation(
     navController: NavHostController,
     viewModelFactory: ViewModelFactory,
-    sharedText: String? = null
+    sharedText: String? = null,
+    oauthMessage: String? = null,
+    onOauthMessageShown: () -> Unit = {}
 ) {
     NavHost(
         navController = navController,
@@ -30,7 +32,9 @@ fun AppNavigation(
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
-                sharedText = sharedText
+                sharedText = sharedText,
+                oauthMessage = oauthMessage,
+                onOauthMessageShown = onOauthMessageShown
             )
         }
 

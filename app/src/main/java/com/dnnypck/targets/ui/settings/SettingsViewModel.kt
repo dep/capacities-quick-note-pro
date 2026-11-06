@@ -1,24 +1,34 @@
 package com.dnnypck.capacitiesquicknotepro.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthConfig
+import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthCoordinator
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import com.dnnypck.targets.data.model.Space
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 data class SettingsScreenState(
-    val apiKey: String = "",
-    val spaceId: String = "",
     val spaces: List<Space> = emptyList(),
     val editingSpace: Space? = null,
-    val showAddDialog: Boolean = false,
+    val showEditDialog: Boolean = false,
+    val showDisconnectConfirm: Space? = null,
+    val showSignOutAllConfirm: Boolean = false,
+    val isBusy: Boolean = false,
+    val oauthConfigured: Boolean = OAuthConfig.isConfigured,
+    val needsOAuthMigration: Boolean = false,
+    val redirectUri: String = OAuthConfig.redirectUri,
     val message: String? = null
 )
 
 class SettingsViewModel(
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val oauthCoordinator: OAuthCoordinator
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsScreenState())
@@ -28,94 +38,88 @@ class SettingsViewModel(
         loadSettings()
     }
 
-    private fun loadSettings() {
+    fun loadSettings() {
         _state.update {
             it.copy(
-                apiKey = preferencesManager.getApiKey(),
-                spaceId = preferencesManager.getSpaceId(),
-                spaces = preferencesManager.getSpaces()
+                spaces = preferencesManager.getSpaces(),
+                oauthConfigured = OAuthConfig.isConfigured,
+                needsOAuthMigration = preferencesManager.needsOAuthMigration(),
+                redirectUri = OAuthConfig.redirectUri
             )
         }
     }
 
-    fun updateApiKey(apiKey: String) {
-        _state.update { it.copy(apiKey = apiKey) }
-    }
-
-    fun updateSpaceId(spaceId: String) {
-        _state.update { it.copy(spaceId = spaceId) }
-    }
-
-    fun saveSettings() {
-        val apiKey = _state.value.apiKey.trim()
-        val spaceId = _state.value.spaceId.trim()
-
-        if (apiKey.isBlank() || spaceId.isBlank()) {
-            _state.update { it.copy(message = "Please fill in all fields") }
+    fun connect(context: Context) {
+        if (!OAuthConfig.isConfigured) {
+            _state.update {
+                it.copy(
+                    message = "OAuth client ID is empty. Remove any blank CAPACITIES_CLIENT_ID override so the build uses capacities_api_quick_note_pro."
+                )
+            }
             return
         }
-
-        preferencesManager.saveApiKey(apiKey)
-        preferencesManager.saveSpaceId(spaceId)
-        _state.update { it.copy(message = "Settings saved successfully") }
-    }
-
-    fun saveApiKey() {
-        val apiKey = _state.value.apiKey.trim()
-        if (apiKey.isBlank()) {
-            _state.update { it.copy(message = "API Key can't be empty. Paste your key from Capacities → Settings → Capacities API.") }
-            return
+        viewModelScope.launch {
+            _state.update { it.copy(isBusy = true) }
+            val result = oauthCoordinator.startAuthorization(context)
+            _state.update {
+                it.copy(
+                    isBusy = false,
+                    message = result.exceptionOrNull()?.message
+                )
+            }
         }
-        preferencesManager.saveApiKey(apiKey)
-        // Reflect the cleaned-up value (whitespace/new lines stripped) back into the field.
-        _state.update { it.copy(apiKey = preferencesManager.getApiKey(), message = "API Key saved") }
-    }
-
-    fun showAddSpaceDialog() {
-        _state.update { it.copy(showAddDialog = true, editingSpace = null) }
     }
 
     fun showEditSpaceDialog(space: Space) {
-        _state.update { it.copy(showAddDialog = true, editingSpace = space) }
+        _state.update { it.copy(showEditDialog = true, editingSpace = space) }
     }
 
     fun hideSpaceDialog() {
-        _state.update { it.copy(showAddDialog = false, editingSpace = null) }
+        _state.update { it.copy(showEditDialog = false, editingSpace = null) }
     }
 
-    fun saveSpace(spaceId: String, nickname: String?) {
-        val trimmedId = spaceId.trim()
-        val trimmedNickname = nickname?.trim()
-
-        if (trimmedId.isBlank()) {
-            _state.update { it.copy(message = "Space ID can't be empty. Find it in Capacities → Settings → Space settings.") }
-            return
-        }
-
-        val editingSpace = _state.value.editingSpace
-        if (editingSpace != null) {
-            // Update existing space
-            val updatedSpace = editingSpace.copy(
-                id = trimmedId,
-                nickname = trimmedNickname
-            )
-            preferencesManager.updateSpace(updatedSpace)
-            _state.update { it.copy(message = "Space updated") }
-        } else {
-            // Add new space
-            val newSpace = Space(id = trimmedId, nickname = trimmedNickname)
-            preferencesManager.addSpace(newSpace)
-            _state.update { it.copy(message = "Space added") }
-        }
-
+    fun saveNickname(nickname: String?) {
+        val editingSpace = _state.value.editingSpace ?: return
+        val updated = editingSpace.copy(nickname = nickname?.trim()?.ifBlank { null })
+        preferencesManager.updateSpace(updated)
         hideSpaceDialog()
         loadSettings()
+        _state.update { it.copy(message = "Space nickname updated") }
     }
 
-    fun deleteSpace(spaceId: String) {
-        preferencesManager.removeSpace(spaceId)
-        _state.update { it.copy(message = "Space deleted") }
-        loadSettings()
+    fun requestDisconnect(space: Space) {
+        _state.update { it.copy(showDisconnectConfirm = space) }
+    }
+
+    fun cancelDisconnect() {
+        _state.update { it.copy(showDisconnectConfirm = null) }
+    }
+
+    fun confirmDisconnect() {
+        val space = _state.value.showDisconnectConfirm ?: return
+        _state.update { it.copy(showDisconnectConfirm = null, isBusy = true) }
+        viewModelScope.launch {
+            oauthCoordinator.disconnect(space.id)
+            loadSettings()
+            _state.update { it.copy(isBusy = false, message = "Disconnected ${space.getDisplayName()}") }
+        }
+    }
+
+    fun requestSignOutAll() {
+        _state.update { it.copy(showSignOutAllConfirm = true) }
+    }
+
+    fun cancelSignOutAll() {
+        _state.update { it.copy(showSignOutAllConfirm = false) }
+    }
+
+    fun confirmSignOutAll() {
+        _state.update { it.copy(showSignOutAllConfirm = false, isBusy = true) }
+        viewModelScope.launch {
+            oauthCoordinator.disconnectAll()
+            loadSettings()
+            _state.update { it.copy(isBusy = false, message = "Signed out of Capacities") }
+        }
     }
 
     fun clearMessage() {
@@ -129,9 +133,15 @@ class SettingsViewModel(
     fun restoreFromBackup(backupJson: String) {
         val result = preferencesManager.restoreFromBackup(backupJson)
         result.fold(
-            onSuccess = {
+            onSuccess = { restoreResult ->
                 loadSettings()
-                _state.update { it.copy(message = "Settings restored successfully") }
+                val message = when (restoreResult) {
+                    PreferencesManager.RestoreResult.SignedInSpacesKept ->
+                        "Settings restored. You are still signed in for spaces that were already connected."
+                    PreferencesManager.RestoreResult.NeedsSignIn ->
+                        "Settings restored. Sign in with Capacities to connect each space."
+                }
+                _state.update { it.copy(message = message) }
             },
             onFailure = { error ->
                 _state.update { it.copy(message = "Restore failed: ${error.message}") }

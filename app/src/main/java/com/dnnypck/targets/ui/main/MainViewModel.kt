@@ -2,7 +2,7 @@ package com.dnnypck.capacitiesquicknotepro.ui.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dnnypck.capacitiesquicknotepro.data.network.postToTarget
+import com.dnnypck.capacitiesquicknotepro.data.repository.CapacitiesRepository
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import com.dnnypck.targets.data.model.Space
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,14 +15,17 @@ data class MainScreenState(
     val content: String = "",
     val isSending: Boolean = false,
     val message: String? = null,
+    val isError: Boolean = false,
     val hasCredentials: Boolean = false,
+    val needsOAuthMigration: Boolean = false,
     val isDemoMode: Boolean = false,
     val availableSpaces: List<Space> = emptyList(),
     val selectedSpaceId: String? = null
 )
 
 class MainViewModel(
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val repository: CapacitiesRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MainScreenState())
@@ -37,6 +40,7 @@ class MainViewModel(
         _state.update {
             it.copy(
                 hasCredentials = preferencesManager.hasRequiredSettings(),
+                needsOAuthMigration = preferencesManager.needsOAuthMigration(),
                 isDemoMode = preferencesManager.isDemoMode()
             )
         }
@@ -52,9 +56,8 @@ class MainViewModel(
 
     fun enableDemoMode() {
         preferencesManager.setDemoMode(true)
-        // Provide a demo space so the UI has something to show
-        if (preferencesManager.getSpaces().isEmpty()) {
-            preferencesManager.addSpace(com.dnnypck.targets.data.model.Space(id = "demo-space", nickname = "Demo Space"))
+        if (preferencesManager.getSpaces().none { it.id == "demo-space" }) {
+            preferencesManager.addSpace(Space(id = "demo-space", nickname = "Demo Space"))
             preferencesManager.saveSelectedSpaceId("demo-space")
         }
         _state.update { it.copy(isDemoMode = true) }
@@ -65,7 +68,6 @@ class MainViewModel(
         val spaces = preferencesManager.getSpaces()
         var selectedId = preferencesManager.getSelectedSpaceId()
 
-        // If no selection or selected space doesn't exist, pick first space
         if (selectedId == null || spaces.none { it.id == selectedId }) {
             selectedId = spaces.firstOrNull()?.id
             selectedId?.let { preferencesManager.saveSelectedSpaceId(it) }
@@ -93,30 +95,25 @@ class MainViewModel(
         _state.update { it.copy(content = content) }
     }
 
-    private fun isUrlOnly(text: String): Boolean {
-        val trimmed = text.trim()
-        return trimmed.matches(Regex("^https?://[^\\s]+$"))
-    }
-
     fun sendContent() {
         val content = _state.value.content
         if (content.isBlank()) return
 
         val selectedSpaceId = _state.value.selectedSpaceId
         if (selectedSpaceId == null) {
-            _state.update { it.copy(message = "Please select a space") }
+            _state.update { it.copy(message = "Please select a space", isError = true) }
             return
         }
 
-        // Demo mode: simulate a successful send without hitting the API
         if (_state.value.isDemoMode) {
             viewModelScope.launch {
-                _state.update { it.copy(isSending = true, message = null) }
+                _state.update { it.copy(isSending = true, message = null, isError = false) }
                 kotlinx.coroutines.delay(800)
                 _state.update {
                     it.copy(
                         isSending = false,
                         message = "Demo: note sent successfully (not saved to Capacities)",
+                        isError = false,
                         content = ""
                     )
                 }
@@ -125,90 +122,49 @@ class MainViewModel(
         }
 
         if (!preferencesManager.hasRequiredSettings()) {
-            _state.update { it.copy(message = "Please configure API settings first") }
+            _state.update {
+                it.copy(
+                    message = "Please connect a Capacities space in Settings first",
+                    isError = true
+                )
+            }
             return
         }
 
-        val apiKey = preferencesManager.getApiKey()
-        val spaceId = selectedSpaceId
-
         viewModelScope.launch {
-            _state.update { it.copy(isSending = true, message = null) }
+            _state.update { it.copy(isSending = true, message = null, isError = false) }
 
-            try {
-                val headers = mapOf(
-                    "Authorization" to "Bearer $apiKey",
-                    "Content-Type" to "application/json"
-                )
-
-                // Check if content is only a URL
-                val isUrl = isUrlOnly(content)
-                val (endpoint, body) = if (isUrl) {
-                    // Use save-weblink endpoint
-                    "https://api.capacities.io/save-weblink" to """
-                        {
-                            "spaceId": "$spaceId",
-                            "url": "${content.trim().replace("\"", "\\\"")}"
-                        }
-                    """.trimIndent()
-                } else {
-                    // Use save-to-daily-note endpoint
-                    "https://api.capacities.io/save-to-daily-note" to """
-                        {
-                            "spaceId": "$spaceId",
-                            "mdText": "${content.replace("\"", "\\\"").replace("\n", "\\n")}",
-                            "origin": "commandPalette"
-                        }
-                    """.trimIndent()
-                }
-
-                val result = postToTarget(
-                    url = endpoint,
-                    headers = headers,
-                    body = body
-                )
-
-                result.fold(
-                    onSuccess = {
-                        _state.update {
-                            it.copy(
-                                isSending = false,
-                                message = "Successfully saved to Capacities",
-                                content = ""
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        val detailedError = buildString {
-                            appendLine("Couldn't save your note to Capacities.")
-                            appendLine()
-                            appendLine(error.message ?: "Unknown error")
-                            appendLine()
-                            appendLine("Request details:")
-                            appendLine("Endpoint: $endpoint")
-                            appendLine("Space ID: $spaceId")
-                            appendLine("API Key: ${if (apiKey.length >= 8) apiKey.take(8) + "..." else "(too short)"}")
-                        }.trimEnd()
-                        _state.update {
-                            it.copy(
-                                isSending = false,
-                                message = detailedError
-                            )
-                        }
+            val result = repository.sendNote(selectedSpaceId, content)
+            result.fold(
+                onSuccess = {
+                    _state.update {
+                        it.copy(
+                            isSending = false,
+                            message = "Successfully saved to Capacities",
+                            isError = false,
+                            content = ""
+                        )
                     }
-                )
-            } catch (e: Exception) {
-                _state.update {
-                    it.copy(
-                        isSending = false,
-                        message = "Couldn't save your note to Capacities: ${e.message ?: e.javaClass.simpleName}"
-                    )
+                },
+                onFailure = { error ->
+                    val detailedError = buildString {
+                        appendLine("Couldn't save your note to Capacities.")
+                        appendLine()
+                        appendLine(error.message ?: "Unknown error")
+                    }.trimEnd()
+                    _state.update {
+                        it.copy(
+                            isSending = false,
+                            message = detailedError,
+                            isError = true
+                        )
+                    }
                 }
-            }
+            )
         }
     }
 
     fun clearMessage() {
-        _state.update { it.copy(message = null) }
+        _state.update { it.copy(message = null, isError = false) }
     }
 }
