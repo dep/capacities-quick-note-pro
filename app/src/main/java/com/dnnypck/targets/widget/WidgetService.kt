@@ -9,6 +9,9 @@ import android.os.IBinder
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.dnnypck.capacitiesquicknotepro.R
+import com.dnnypck.capacitiesquicknotepro.data.notes.SavedNote
+import com.dnnypck.capacitiesquicknotepro.data.notes.SendCoordinator
+import com.dnnypck.capacitiesquicknotepro.data.notes.SharedNoteRuntime
 import com.dnnypck.capacitiesquicknotepro.data.repository.CapacitiesRepository
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
@@ -38,22 +41,21 @@ class WidgetService : Service() {
             val preferencesManager = PreferencesManager(applicationContext)
             val selectedSpaceId = preferencesManager.getSelectedSpaceId()
 
+            val outbox = SharedNoteRuntime.outbox(applicationContext.filesDir)
             if (!preferencesManager.hasRequiredSettings() || selectedSpaceId == null) {
-                showToast("Please connect Capacities in the app first")
+                outbox.recordDraft(noteText, selectedSpaceId.orEmpty(), null, SavedNote.SOURCE_WIDGET)
+                showToast("Please connect Capacities in the app first. The note is in Saved notes.")
                 return@launch
             }
 
-            val result = CapacitiesRepository(preferencesManager.tokenStore)
-                .sendNote(selectedSpaceId, noteText)
-
-            result.fold(
-                onSuccess = {
-                    showToast("Note sent successfully!")
-                },
-                onFailure = { error ->
-                    showToast("Failed to send: ${error.message}")
-                }
+            val coordinator = SendCoordinator(
+                outbox,
+                SharedNoteRuntime.sendGate,
+                CapacitiesRepository(preferencesManager.tokenStore).asNoteSender()
             )
+            val spaceName = preferencesManager.getSpaces().find { it.id == selectedSpaceId }?.getDisplayName()
+            val result = coordinator.submit(noteText, selectedSpaceId, spaceName, SavedNote.SOURCE_WIDGET)
+            showToast(result.message)
         }
     }
 

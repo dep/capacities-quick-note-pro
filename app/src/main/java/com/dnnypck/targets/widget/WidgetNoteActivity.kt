@@ -32,6 +32,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import com.dnnypck.capacitiesquicknotepro.data.notes.NoteOutbox
+import com.dnnypck.capacitiesquicknotepro.data.notes.SavedNote
+import com.dnnypck.capacitiesquicknotepro.data.notes.SendCoordinator
+import com.dnnypck.capacitiesquicknotepro.data.notes.SharedNoteRuntime
 import com.dnnypck.capacitiesquicknotepro.data.repository.CapacitiesRepository
 import com.dnnypck.capacitiesquicknotepro.ui.theme.CapacitiesQuickNoteTheme
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
@@ -41,7 +45,12 @@ import kotlinx.coroutines.launch
 class WidgetNoteActivity : ComponentActivity() {
     private lateinit var preferencesManager: PreferencesManager
     private lateinit var repository: CapacitiesRepository
+    private lateinit var outbox: NoteOutbox
+    private lateinit var sendCoordinator: SendCoordinator
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+    private var sending = false
+    private var submitted = false
+    private var lastTyped = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,6 +59,13 @@ class WidgetNoteActivity : ComponentActivity() {
 
         preferencesManager = PreferencesManager(applicationContext)
         repository = CapacitiesRepository(preferencesManager.tokenStore)
+        outbox = SharedNoteRuntime.outbox(applicationContext.filesDir)
+        sendCoordinator = SendCoordinator(
+            outbox,
+            SharedNoteRuntime.sendGate,
+            repository.asNoteSender()
+        )
+        outbox.snapshotActiveDraftIfNeeded("")
 
         appWidgetId = intent?.getIntExtra(
             AppWidgetManager.EXTRA_APPWIDGET_ID,
@@ -57,71 +73,110 @@ class WidgetNoteActivity : ComponentActivity() {
         ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
 
         setContent {
+            var sendingUi by remember { mutableStateOf(false) }
             CapacitiesQuickNoteTheme {
                 WidgetNoteScreen(
                     preferencesManager = preferencesManager,
-                    onSend = { noteText ->
-                        sendNote(noteText)
+                    sending = sendingUi,
+                    onTextChange = { text ->
+                        lastTyped = text
+                        if (!submitted) {
+                            outbox.saveActiveDraft(text, preferencesManager.getSelectedSpaceId())
+                        }
                     },
-                    onCancel = { finish() }
+                    onSend = { noteText ->
+                        sendingUi = true
+                        sendNote(noteText) { sendingUi = false }
+                    },
+                    onCancel = { text ->
+                        retainIfUnsent(text)
+                        finish()
+                    }
                 )
             }
         }
     }
 
-    private fun sendNote(noteText: String) {
+    override fun onPause() {
+        super.onPause()
+        if (!submitted && lastTyped.isNotBlank()) {
+            outbox.saveActiveDraft(lastTyped, preferencesManager.getSelectedSpaceId())
+        }
+    }
+
+    private fun sendNote(noteText: String, onFinished: () -> Unit = {}) {
+        if (sending) {
+            onFinished()
+            return
+        }
         if (noteText.isBlank()) {
             Toast.makeText(this, "Please enter a note", Toast.LENGTH_SHORT).show()
+            onFinished()
             return
         }
 
         val selectedSpaceId = preferencesManager.getSelectedSpaceId()
         if (selectedSpaceId == null) {
             Toast.makeText(this, "Please select a space first", Toast.LENGTH_SHORT).show()
+            onFinished()
             return
         }
 
         if (!preferencesManager.hasRequiredSettings()) {
-            Toast.makeText(this, "Please connect Capacities in settings", Toast.LENGTH_SHORT).show()
+            outbox.recordDraft(
+                noteText,
+                selectedSpaceId,
+                preferencesManager.getSpaces().find { it.id == selectedSpaceId }?.getDisplayName(),
+                SavedNote.SOURCE_WIDGET
+            )
+            Toast.makeText(this, "Please connect Capacities in settings. The note is in Saved notes.", Toast.LENGTH_SHORT).show()
+            onFinished()
             return
         }
 
+        sending = true
+        val spaceName = preferencesManager.getSpaces().find { it.id == selectedSpaceId }?.getDisplayName()
         lifecycleScope.launch {
             try {
-                val result = repository.sendNote(selectedSpaceId, noteText)
-                result.fold(
-                    onSuccess = {
-                        Toast.makeText(
-                            this@WidgetNoteActivity,
-                            "Note sent successfully!",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        val appWidgetManager = AppWidgetManager.getInstance(applicationContext)
-                        CapacitiesWidget.updateAppWidget(
-                            applicationContext,
-                            appWidgetManager,
-                            appWidgetId
-                        )
-
-                        finish()
-                    },
-                    onFailure = { error ->
-                        Toast.makeText(
-                            this@WidgetNoteActivity,
-                            "Couldn't save note: ${error.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+                val result = sendCoordinator.submit(
+                    content = noteText,
+                    spaceId = selectedSpaceId,
+                    spaceName = spaceName,
+                    source = SavedNote.SOURCE_WIDGET
                 )
+                Toast.makeText(this@WidgetNoteActivity, result.message, Toast.LENGTH_LONG).show()
+                if (result.clearEditor) {
+                    submitted = true
+                    outbox.clearActiveDraft()
+                    val appWidgetManager = AppWidgetManager.getInstance(applicationContext)
+                    CapacitiesWidget.updateAppWidget(
+                        applicationContext,
+                        appWidgetManager,
+                        appWidgetId
+                    )
+                    finish()
+                }
             } catch (e: Exception) {
+                outbox.recordDraft(noteText, selectedSpaceId, spaceName, SavedNote.SOURCE_WIDGET)
                 Toast.makeText(
                     this@WidgetNoteActivity,
-                    "Couldn't save note: ${e.message ?: e.javaClass.simpleName}",
+                    "Couldn't finish sending. Check Saved notes. ${NoteOutbox.sanitizeError(e.message ?: e.javaClass.simpleName)}",
                     Toast.LENGTH_LONG
                 ).show()
+            } finally {
+                sending = false
+                onFinished()
             }
         }
+    }
+
+    private fun retainIfUnsent(text: String) {
+        if (submitted || text.isBlank()) return
+        val spaceId = preferencesManager.getSelectedSpaceId().orEmpty()
+        val spaceName = preferencesManager.getSpaces()
+            .find { it.id == spaceId }?.getDisplayName()
+        outbox.recordDraft(text, spaceId, spaceName, SavedNote.SOURCE_WIDGET)
+        outbox.clearActiveDraft()
     }
 }
 
@@ -129,8 +184,10 @@ class WidgetNoteActivity : ComponentActivity() {
 @Composable
 fun WidgetNoteScreen(
     preferencesManager: PreferencesManager,
+    sending: Boolean = false,
+    onTextChange: (String) -> Unit = {},
     onSend: (String) -> Unit,
-    onCancel: () -> Unit
+    onCancel: (String) -> Unit
 ) {
     var noteText by remember { mutableStateOf("") }
     val spaces = remember { preferencesManager.getSpaces() }
@@ -167,7 +224,10 @@ fun WidgetNoteScreen(
 
             OutlinedTextField(
                 value = noteText,
-                onValueChange = { noteText = it },
+                onValueChange = {
+                    noteText = it
+                    onTextChange(it)
+                },
                 label = { Text("Your note") },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -183,7 +243,7 @@ fun WidgetNoteScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
-                    onClick = onCancel,
+                    onClick = { onCancel(noteText) },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Cancel")
@@ -191,9 +251,10 @@ fun WidgetNoteScreen(
 
                 Button(
                     onClick = { onSend(noteText) },
+                    enabled = !sending,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Send")
+                    Text(if (sending) "Sending…" else "Send")
                 }
             }
         }
