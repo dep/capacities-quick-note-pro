@@ -53,6 +53,7 @@ data class StoredNotes(
 interface NoteStorage {
     fun read(): StoredNotes
     fun write(data: StoredNotes): Boolean
+    fun mutate(transform: (StoredNotes) -> StoredNotes): StoredNotes?
 }
 
 class MemoryNoteStorage(
@@ -61,14 +62,18 @@ class MemoryNoteStorage(
     var data: StoredNotes = initial
     var failNextWrite: Boolean = false
 
-    override fun read(): StoredNotes = data
+    override fun read(): StoredNotes = synchronized(this) { data }
 
-    override fun write(data: StoredNotes): Boolean {
-        if (failNextWrite) {
-            failNextWrite = false
-            return false
+    override fun write(data: StoredNotes): Boolean = mutate { data } != null
+
+    override fun mutate(transform: (StoredNotes) -> StoredNotes): StoredNotes? {
+        synchronized(this) {
+            if (failNextWrite) {
+                failNextWrite = false
+                return null
+            }
+            data = transform(data)
+            return data
         }
-        this.data = data
-        return true
     }
 }

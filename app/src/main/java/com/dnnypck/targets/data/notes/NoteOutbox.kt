@@ -5,46 +5,50 @@ class NoteOutbox(
     private val idFactory: () -> String = { java.util.UUID.randomUUID().toString() },
     private val clock: () -> Long = { System.currentTimeMillis() }
 ) {
-    @Volatile private var cached: StoredNotes = storage.read()
+    fun items(): List<SavedNote> = snapshot().items.sortedByDescending { it.updatedAt }
 
-    fun items(): List<SavedNote> = synchronized(this) { cached.items.sortedByDescending { it.updatedAt } }
+    fun get(id: String): SavedNote? = snapshot().items.firstOrNull { it.id == id }
 
-    fun get(id: String): SavedNote? = synchronized(this) { cached.items.firstOrNull { it.id == id } }
-
-    fun activeDraft(): ActiveDraft? = synchronized(this) { cached.activeDraft }
+    fun activeDraft(): ActiveDraft? = snapshot().activeDraft
 
     fun unresolved(): List<SavedNote> = items().filter { it.isUnresolved }
 
     fun saveActiveDraft(content: String, spaceId: String?): Boolean {
-        val trimmed = content
-        val draft = if (trimmed.isBlank()) {
+        val draft = if (content.isBlank()) {
             null
         } else {
-            ActiveDraft(content = trimmed, spaceId = spaceId, updatedAt = clock())
+            ActiveDraft(content = content, spaceId = spaceId, updatedAt = clock())
         }
-        return persist(cached.copy(activeDraft = draft))
+        return mutate { current -> current.copy(activeDraft = draft) }
     }
 
-    fun clearActiveDraft(): Boolean = persist(cached.copy(activeDraft = null))
+    fun clearActiveDraft(): Boolean = mutate { current -> current.copy(activeDraft = null) }
 
     fun snapshotActiveDraftIfNeeded(incomingContent: String): Boolean {
-        val current = activeDraft()?.content?.takeIf { it.isNotBlank() } ?: return true
-        if (current == incomingContent) return true
-        val snapshot = SavedNote(
-            id = idFactory(),
-            content = current,
-            spaceId = activeDraft()?.spaceId.orEmpty(),
-            status = NoteDeliveryStatus.DRAFT,
-            source = SavedNote.SOURCE_MAIN,
-            createdAt = clock(),
-            updatedAt = clock()
-        )
-        val incoming = if (incomingContent.isBlank()) {
-            null
-        } else {
-            ActiveDraft(content = incomingContent, spaceId = activeDraft()?.spaceId, updatedAt = clock())
+        return mutate { current ->
+            val existing = current.activeDraft?.content?.takeIf { it.isNotBlank() }
+                ?: return@mutate current
+            if (existing == incomingContent) return@mutate current
+            val snapshot = SavedNote(
+                id = idFactory(),
+                content = existing,
+                spaceId = current.activeDraft?.spaceId.orEmpty(),
+                status = NoteDeliveryStatus.DRAFT,
+                source = SavedNote.SOURCE_MAIN,
+                createdAt = clock(),
+                updatedAt = clock()
+            )
+            val incoming = if (incomingContent.isBlank()) {
+                null
+            } else {
+                ActiveDraft(
+                    content = incomingContent,
+                    spaceId = current.activeDraft?.spaceId,
+                    updatedAt = clock()
+                )
+            }
+            current.copy(items = current.items + snapshot, activeDraft = incoming)
         }
-        return persist(cached.copy(items = cached.items + snapshot, activeDraft = incoming))
     }
 
     fun recordDraft(
@@ -52,40 +56,14 @@ class NoteOutbox(
         spaceId: String,
         spaceName: String?,
         source: String
-    ): SavedNote? {
-        val now = clock()
-        val note = SavedNote(
-            id = idFactory(),
-            content = content,
-            spaceId = spaceId,
-            spaceName = spaceName,
-            source = source,
-            status = NoteDeliveryStatus.DRAFT,
-            createdAt = now,
-            updatedAt = now
-        )
-        return if (persist(cached.copy(items = cached.items + note))) note else null
-    }
+    ): SavedNote? = append(content, spaceId, spaceName, source, NoteDeliveryStatus.DRAFT)
 
     fun recordQueued(
         content: String,
         spaceId: String,
         spaceName: String?,
         source: String
-    ): SavedNote? {
-        val now = clock()
-        val note = SavedNote(
-            id = idFactory(),
-            content = content,
-            spaceId = spaceId,
-            spaceName = spaceName,
-            source = source,
-            status = NoteDeliveryStatus.QUEUED,
-            createdAt = now,
-            updatedAt = now
-        )
-        return if (persist(cached.copy(items = cached.items + note))) note else null
-    }
+    ): SavedNote? = append(content, spaceId, spaceName, source, NoteDeliveryStatus.QUEUED)
 
     fun markFailed(id: String, error: String): Boolean = update(id) { note ->
         note.copy(
@@ -118,40 +96,76 @@ class NoteOutbox(
     }
 
     fun delete(id: String, allowUnresolved: Boolean): Boolean {
-        val note = get(id) ?: return false
-        if (note.isUnresolved && !allowUnresolved) return false
-        return persist(cached.copy(items = cached.items.filterNot { it.id == id }))
+        var removed = false
+        val ok = mutate { current ->
+            val note = current.items.firstOrNull { it.id == id } ?: return@mutate current
+            if (note.isUnresolved && !allowUnresolved) return@mutate current
+            removed = true
+            current.copy(items = current.items.filterNot { it.id == id })
+        }
+        return ok && removed
     }
 
     fun purgeAcknowledged(
         maxAgeMs: Long = ACKNOWLEDGED_MAX_AGE_MS,
         maxCount: Int = ACKNOWLEDGED_MAX_COUNT
     ) {
-        val now = clock()
-        val acknowledged = cached.items
-            .filter { it.status == NoteDeliveryStatus.ACKNOWLEDGED }
-            .sortedBy { it.acknowledgedAt ?: it.updatedAt }
-        val keepAck = acknowledged
-            .filter { now - (it.acknowledgedAt ?: it.updatedAt) <= maxAgeMs }
-            .takeLast(maxCount)
-            .toSet()
-        val kept = cached.items.filter { note ->
-            note.status != NoteDeliveryStatus.ACKNOWLEDGED || note in keepAck
+        mutate { current ->
+            val now = clock()
+            val acknowledged = current.items
+                .filter { it.status == NoteDeliveryStatus.ACKNOWLEDGED }
+                .sortedBy { it.acknowledgedAt ?: it.updatedAt }
+            val keepAck = acknowledged
+                .filter { now - (it.acknowledgedAt ?: it.updatedAt) <= maxAgeMs }
+                .takeLast(maxCount)
+                .toSet()
+            current.copy(
+                items = current.items.filter { note ->
+                    note.status != NoteDeliveryStatus.ACKNOWLEDGED || note in keepAck
+                }
+            )
         }
-        persist(cached.copy(items = kept))
+    }
+
+    private fun append(
+        content: String,
+        spaceId: String,
+        spaceName: String?,
+        source: String,
+        status: NoteDeliveryStatus
+    ): SavedNote? {
+        val now = clock()
+        val note = SavedNote(
+            id = idFactory(),
+            content = content,
+            spaceId = spaceId,
+            spaceName = spaceName,
+            source = source,
+            status = status,
+            createdAt = now,
+            updatedAt = now
+        )
+        return if (mutate { current -> current.copy(items = current.items + note) }) note else null
     }
 
     private fun update(id: String, transform: (SavedNote) -> SavedNote): Boolean {
-        val items = cached.items.map { if (it.id == id) transform(it) else it }
-        return persist(cached.copy(items = items))
+        var found = false
+        val ok = mutate { current ->
+            if (current.items.none { it.id == id }) return@mutate current
+            found = true
+            current.copy(
+                items = current.items.map { note ->
+                    if (note.id == id) transform(note) else note
+                }
+            )
+        }
+        return ok && found
     }
 
-    private fun persist(next: StoredNotes): Boolean {
-        synchronized(this) {
-            if (!storage.write(next)) return false
-            cached = next
-            return true
-        }
+    private fun snapshot(): StoredNotes = storage.read()
+
+    private fun mutate(transform: (StoredNotes) -> StoredNotes): Boolean {
+        return storage.mutate(transform) != null
     }
 
     companion object {

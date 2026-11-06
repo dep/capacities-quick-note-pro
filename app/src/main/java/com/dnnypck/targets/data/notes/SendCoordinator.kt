@@ -17,33 +17,31 @@ data class SubmitResult(
 
 class SendCoordinator(
     private val outbox: NoteOutbox,
+    private val gate: SendGate = SendGate(),
     private val sender: NoteSender
 ) {
-    private val mutex = Mutex()
-    @Volatile private var inFlight = false
-
     suspend fun submit(
         content: String,
         spaceId: String,
         spaceName: String?,
         source: String
-    ): SubmitResult = mutex.withLock {
-        if (inFlight) {
+    ): SubmitResult = gate.mutex.withLock {
+        if (gate.inFlight) {
             return SubmitResult(
                 clearEditor = false,
                 message = "Already sending a note. Wait for it to finish.",
                 isError = true
             )
         }
-        inFlight = true
+        gate.inFlight = true
         try {
             doSubmit(content, spaceId, spaceName, source)
         } finally {
-            inFlight = false
+            gate.inFlight = false
         }
     }
 
-    suspend fun resend(noteId: String): SubmitResult = mutex.withLock {
+    suspend fun resend(noteId: String): SubmitResult = gate.mutex.withLock {
         val existing = outbox.get(noteId)
             ?: return SubmitResult(false, "That saved note is no longer on this device.", true)
         val warn = existing.status == NoteDeliveryStatus.UNCERTAIN ||

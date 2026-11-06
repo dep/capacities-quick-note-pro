@@ -32,10 +32,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.dnnypck.capacitiesquicknotepro.data.notes.FileNoteStorage
 import com.dnnypck.capacitiesquicknotepro.data.notes.NoteOutbox
 import com.dnnypck.capacitiesquicknotepro.data.notes.SavedNote
 import com.dnnypck.capacitiesquicknotepro.data.notes.SendCoordinator
+import com.dnnypck.capacitiesquicknotepro.data.notes.SharedNoteRuntime
 import com.dnnypck.capacitiesquicknotepro.data.repository.CapacitiesRepository
 import com.dnnypck.capacitiesquicknotepro.ui.theme.CapacitiesQuickNoteTheme
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
@@ -59,8 +59,12 @@ class WidgetNoteActivity : ComponentActivity() {
 
         preferencesManager = PreferencesManager(applicationContext)
         repository = CapacitiesRepository(preferencesManager.tokenStore)
-        outbox = NoteOutbox(FileNoteStorage.inAppFiles(applicationContext.filesDir))
-        sendCoordinator = SendCoordinator(outbox, repository.asNoteSender())
+        outbox = SharedNoteRuntime.outbox(applicationContext.filesDir)
+        sendCoordinator = SendCoordinator(
+            outbox,
+            SharedNoteRuntime.sendGate,
+            repository.asNoteSender()
+        )
         outbox.snapshotActiveDraftIfNeeded("")
 
         appWidgetId = intent?.getIntExtra(

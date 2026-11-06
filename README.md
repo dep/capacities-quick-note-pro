@@ -104,7 +104,7 @@ The app keeps a local copy on this device **before** it clears the editor:
 
 Open **Saved notes** from the main screen to inspect, copy, put a note back in the editor, or send it again. Unsent and uncertain notes are never deleted automatically. Accepted copies are kept about 14 days (up to 100), then the oldest accepted copies are removed. You can remove a copy yourself.
 
-This is device-local recovery, not a Capacities sync log. Uninstalling the app, clearing app storage, or a dead device can still lose these copies. Manual settings backups do **not** include note bodies or sign-in tokens.
+This is device-local recovery, not a Capacities sync log. Uninstalling the app, clearing app storage, or a dead device can still lose these copies. Manual settings backups do **not** include note bodies or sign-in tokens. Main, share, and widget writers share one on-device store and take a file lock around each read-modify-write so overlapping saves cannot overwrite each other.
 
 The app will not automatically resend an uncertain note (that could create a duplicate). If you tap **Send again** on an uncertain or already-accepted note, you will be warned.
 
