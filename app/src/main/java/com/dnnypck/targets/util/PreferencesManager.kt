@@ -179,6 +179,16 @@ class PreferencesManager(context: Context) {
         prefs.edit().putBoolean(KEY_DEMO_MODE, enabled).apply()
     }
 
+    fun incrementSuccessfulSaves(): Int {
+        val count = prefs.getInt(KEY_SUCCESSFUL_SAVES, 0) + 1
+        prefs.edit().putInt(KEY_SUCCESSFUL_SAVES, count).apply()
+        return count
+    }
+
+    fun getSuccessfulSaves(): Int {
+        return prefs.getInt(KEY_SUCCESSFUL_SAVES, 0)
+    }
+
     enum class RestoreResult {
         SignedInSpacesKept,
         NeedsSignIn
@@ -190,5 +200,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_SPACES = "spaces_json"
         private const val KEY_SELECTED_SPACE_ID = "selected_space_id"
         private const val KEY_DEMO_MODE = "demo_mode"
+        private const val KEY_SUCCESSFUL_SAVES = "successful_saves_count"
     }
 }

@@ -61,8 +61,8 @@ android {
         applicationId = "com.dnnypck.capacitiesquicknotepro"
         minSdk = 24
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.4.0"
+        versionCode = 12
+        versionName = "2.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -139,6 +139,10 @@ dependencies {
     // OAuth: Custom Tabs + encrypted token storage
     implementation(libs.androidx.browser)
     implementation(libs.androidx.security.crypto)
+
+    // In-App Review
+    implementation(libs.play.review)
+    implementation(libs.play.review.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -45,6 +45,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.play.core.review.ReviewManagerFactory
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontFamily
@@ -69,6 +71,7 @@ fun MainScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -80,6 +83,25 @@ fun MainScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(state.triggerReviewRequest) {
+        if (state.triggerReviewRequest) {
+            val activity = context as? android.app.Activity
+            if (activity != null) {
+                val manager = ReviewManagerFactory.create(context)
+                manager.requestReviewFlow().addOnCompleteListener { requestTask ->
+                    if (requestTask.isSuccessful) {
+                        manager.launchReviewFlow(activity, requestTask.result)
+                            .addOnCompleteListener { viewModel.clearReviewRequest() }
+                    } else {
+                        viewModel.clearReviewRequest()
+                    }
+                }
+            } else {
+                viewModel.clearReviewRequest()
+            }
+        }
     }
 
     LaunchedEffect(sharedText) {

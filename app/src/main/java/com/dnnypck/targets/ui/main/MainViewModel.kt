@@ -2,6 +2,7 @@ package com.dnnypck.capacitiesquicknotepro.ui.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dnnypck.capacitiesquicknotepro.data.notes.NoteDeliveryStatus
 import com.dnnypck.capacitiesquicknotepro.data.notes.NoteOutbox
 import com.dnnypck.capacitiesquicknotepro.data.notes.SavedNote
 import com.dnnypck.capacitiesquicknotepro.data.notes.SendCoordinator
@@ -23,7 +24,8 @@ data class MainScreenState(
     val isDemoMode: Boolean = false,
     val availableSpaces: List<Space> = emptyList(),
     val selectedSpaceId: String? = null,
-    val unresolvedCount: Int = 0
+    val unresolvedCount: Int = 0,
+    val triggerReviewRequest: Boolean = false
 )
 
 class MainViewModel(
@@ -180,6 +182,11 @@ class MainViewModel(
                 spaceName = spaceName,
                 source = SavedNote.SOURCE_MAIN
             )
+            val shouldTriggerReview = if (result.status == NoteDeliveryStatus.ACKNOWLEDGED) {
+                preferencesManager.incrementSuccessfulSaves() == 5
+            } else {
+                false
+            }
             if (result.clearEditor) {
                 outbox.clearActiveDraft()
             }
@@ -189,7 +196,8 @@ class MainViewModel(
                     isSending = false,
                     message = result.message,
                     isError = result.isError,
-                    content = if (result.clearEditor) "" else content
+                    content = if (result.clearEditor) "" else content,
+                    triggerReviewRequest = shouldTriggerReview
                 )
             }
         }
@@ -218,5 +226,9 @@ class MainViewModel(
     private fun refreshOutboxCounts() {
         outbox.purgeAcknowledged()
         _state.update { it.copy(unresolvedCount = outbox.unresolved().size) }
+    }
+
+    fun clearReviewRequest() {
+        _state.update { it.copy(triggerReviewRequest = false) }
     }
 }
