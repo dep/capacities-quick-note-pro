@@ -19,7 +19,8 @@ Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capa
 - **Modern Material 3 UI**: Clean, intuitive interface following Material Design 3 guidelines
 - **Edge-to-Edge Design**: Modern Android UI with immersive edge-to-edge display
 - **Error Handling**: Detailed error messages to help troubleshoot API connectivity issues
-- **Backup/Restore**: Back up spaces and nicknames (not Capacities sign-in) and restore them later or on another device
+- **Saved notes**: Unfinished, failed, uncertain, and recently accepted notes stay on this device so a send glitch does not have to mean the text is gone
+- **Backup/Restore**: Back up spaces and nicknames (not Capacities sign-in, and not note bodies) and restore them later or on another device
 
 ## Requirements
 
@@ -91,6 +92,21 @@ The app supports all Capacities markdown shortcuts. Tap "Formatting your notes" 
 ### URL Detection
 
 When you enter only a URL (e.g., `https://example.com`), the app automatically saves it as a Capacities weblink with preview and metadata. If you include text with a URL, it's saved as a markdown note.
+
+### Saved notes
+
+The app keeps a local copy on this device **before** it clears the editor:
+
+- Drafts you were still writing (including after the app is swiped away)
+- Sends that failed (offline, expired sign-in, rejected note)
+- Sends that timed out or were interrupted — **uncertain**, because Capacities may or may not have received them
+- Sends Capacities **accepted** (HTTP 2xx). Acceptance is not a guarantee the note is already visible in your space; Capacities may still be syncing
+
+Open **Saved notes** from the main screen to inspect, copy, put a note back in the editor, or send it again. Unsent and uncertain notes are never deleted automatically. Accepted copies are kept about 14 days (up to 100), then the oldest accepted copies are removed. You can remove a copy yourself.
+
+This is device-local recovery, not a Capacities sync log. Uninstalling the app, clearing app storage, or a dead device can still lose these copies. Manual settings backups do **not** include note bodies or sign-in tokens. Main, share, and widget writers share one on-device store and take a file lock around each read-modify-write so overlapping saves cannot overwrite each other.
+
+The app will not automatically resend an uncertain note (that could create a duplicate). If you tap **Send again** on an uncertain or already-accepted note, you will be warned.
 
 ## Building from Source
 
@@ -209,12 +225,19 @@ Access tokens expire after one hour. The app refreshes them with `offline_access
 ## Privacy & Security
 
 - OAuth tokens are stored on-device with EncryptedSharedPreferences (Android Keystore). Auto-backup excludes that file.
-- Manual Backup/Restore saves spaces and nicknames only. It never writes OAuth tokens or API keys. After restore on a new device, connect to Capacities again. Exporting a backup does not sign you out.
+- Manual Backup/Restore saves spaces and nicknames only. It never writes OAuth tokens, API keys, or note bodies. After restore on a new device, connect to Capacities again. Exporting a backup does not sign you out.
+- Note drafts and send history live in app-private storage (`note_outbox.json`). They are not a cloud backup.
 - All communication with Capacities uses HTTPS.
 - No data is collected, stored, or shared by this app beyond what you explicitly send to Capacities.
 - The app requires only internet permission to communicate with the Capacities API.
 
 ## Troubleshooting
+
+### A note seemed to disappear
+
+- Open **Saved notes**. Failed and uncertain sends stay there, and accepted sends stay for a couple of weeks.
+- "Capacities accepted this note" means the API returned success. It can still take time to show in the daily note.
+- If delivery was **uncertain**, do not assume it is gone — and do not resend unless you have looked in Capacities, because a second send can duplicate it.
 
 ### "Failed to send to Capacities" / 401
 
@@ -236,6 +259,7 @@ Access tokens expire after one hour. The app refreshes them with `offline_access
 
 ## Version History
 
+- **v1.4.0** (Build 11) - Local saved notes / send recovery
 - **v1.3.0** (Build 10) - Capacities API v1 + OAuth (PKCE)
 - **v1.0.3** (Build 4) - Earlier public release
 
