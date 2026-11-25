@@ -1,0 +1,16 @@
+## Copy this file to local.properties (gitignored) and set sdk.dir.
+##
+## OAuth is already configured: the public Capacities client ID
+## `capacities_api_quick_note_pro` is the build default (PKCE, no secret).
+## You do not need to set CAPACITIES_CLIENT_ID unless you want to override it.
+
+sdk.dir=/path/to/android/sdk
+
+# Optional. Leave unset to use the baked-in public client ID.
+# CAPACITIES_CLIENT_ID=capacities_api_quick_note_pro
+
+# Optional overrides. Defaults match the registered redirect URI
+# com.dnnypck.capacitiesquicknotepro://oauth/callback
+# CAPACITIES_REDIRECT_SCHEME=com.dnnypck.capacitiesquicknotepro
+# CAPACITIES_REDIRECT_HOST=oauth
+# CAPACITIES_REDIRECT_PATH=/callback

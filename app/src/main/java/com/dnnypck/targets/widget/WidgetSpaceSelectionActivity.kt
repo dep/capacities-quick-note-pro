@@ -94,7 +94,7 @@ fun SpaceSelectionScreen(
         ) {
             if (spaces.isEmpty()) {
                 Text(
-                    text = "No spaces configured. Please configure spaces in the app first.",
+                    text = "No spaces connected. Please sign in with Capacities in the app first.",
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(modifier = Modifier.height(16.dp))

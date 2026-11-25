@@ -7,6 +7,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import androidx.navigation.compose.rememberNavController
+import com.dnnypck.capacitiesquicknotepro.data.notes.SendCoordinator
+import com.dnnypck.capacitiesquicknotepro.data.notes.SharedNoteRuntime
+import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthCoordinator
+import com.dnnypck.capacitiesquicknotepro.data.oauth.OAuthRedirectActivity
+import com.dnnypck.capacitiesquicknotepro.data.repository.CapacitiesRepository
 import com.dnnypck.capacitiesquicknotepro.ui.navigation.AppNavigation
 import com.dnnypck.capacitiesquicknotepro.ui.theme.CapacitiesQuickNoteTheme
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
@@ -15,14 +20,28 @@ import com.dnnypck.capacitiesquicknotepro.util.ViewModelFactory
 class MainActivity : ComponentActivity() {
     private lateinit var viewModelFactory: ViewModelFactory
     private val sharedText = mutableStateOf<String?>(null)
+    private val oauthMessage = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val preferencesManager = PreferencesManager(applicationContext)
         preferencesManager.migrateFromLegacySpaceId()
-        preferencesManager.migrateToTokenPerSpace()
-        viewModelFactory = ViewModelFactory(preferencesManager)
+        val repository = CapacitiesRepository(preferencesManager.tokenStore)
+        val oauthCoordinator = OAuthCoordinator(preferencesManager)
+        val outbox = SharedNoteRuntime.outbox(applicationContext.filesDir)
+        val sendCoordinator = SendCoordinator(
+            outbox,
+            SharedNoteRuntime.sendGate,
+            repository.asNoteSender()
+        )
+        viewModelFactory = ViewModelFactory(
+            preferencesManager,
+            repository,
+            oauthCoordinator,
+            outbox,
+            sendCoordinator
+        )
 
         handleIntent(intent)
 
@@ -33,7 +52,9 @@ class MainActivity : ComponentActivity() {
                 AppNavigation(
                     navController = navController,
                     viewModelFactory = viewModelFactory,
-                    sharedText = sharedText.value
+                    sharedText = sharedText.value,
+                    oauthMessage = oauthMessage.value,
+                    onOauthMessageShown = { oauthMessage.value = null }
                 )
             }
         }
@@ -49,6 +70,9 @@ class MainActivity : ComponentActivity() {
             intent.getStringExtra(Intent.EXTRA_TEXT)?.let { text ->
                 sharedText.value = text
             }
+        }
+        if (intent.getBooleanExtra(OAuthRedirectActivity.EXTRA_OAUTH_COMPLETED, false)) {
+            oauthMessage.value = intent.getStringExtra(OAuthRedirectActivity.EXTRA_OAUTH_MESSAGE)
         }
     }
 }

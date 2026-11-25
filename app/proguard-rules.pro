@@ -31,11 +31,18 @@
 -keepclasseswithmembers class kotlinx.serialization.json.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
--keep,includedescriptorclasses class com.dnnypck.capacities-quick-note.**$$serializer { *; }
--keepclassmembers class com.dnnypck.capacities-quick-note.** {
+-keep,includedescriptorclasses class com.dnnypck.capacitiesquicknotepro.**$$serializer { *; }
+-keep,includedescriptorclasses class com.dnnypck.targets.**$$serializer { *; }
+-keepclassmembers class com.dnnypck.capacitiesquicknotepro.** {
     *** Companion;
 }
--keepclasseswithmembers class com.dnnypck.capacities-quick-note.** {
+-keepclassmembers class com.dnnypck.targets.** {
+    *** Companion;
+}
+-keepclasseswithmembers class com.dnnypck.capacitiesquicknotepro.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keepclasseswithmembers class com.dnnypck.targets.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 
@@ -59,5 +66,11 @@
 }
 
 # Keep app classes
--keep class com.dnnypck.capacities-quick-note.** { *; }
--keepclassmembers class com.dnnypck.capacities-quick-note.** { *; }
+-keep class com.dnnypck.capacitiesquicknotepro.** { *; }
+-keep class com.dnnypck.targets.** { *; }
+-keepclassmembers class com.dnnypck.capacitiesquicknotepro.** { *; }
+-keepclassmembers class com.dnnypck.targets.** { *; }
+
+# Tink / EncryptedSharedPreferences
+-dontwarn com.google.crypto.tink.**
+-keep class com.google.crypto.tink.** { *; }

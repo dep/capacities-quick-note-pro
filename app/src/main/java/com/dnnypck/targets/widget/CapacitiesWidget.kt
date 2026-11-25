@@ -52,7 +52,7 @@ class CapacitiesWidget : AppWidgetProvider() {
             val spaceText = if (selectedSpace != null) {
                 selectedSpace.getDisplayName()
             } else if (spaces.isEmpty()) {
-                "No spaces - tap to configure"
+                "No spaces - tap to connect"
             } else {
                 "Tap to select space"
             }
