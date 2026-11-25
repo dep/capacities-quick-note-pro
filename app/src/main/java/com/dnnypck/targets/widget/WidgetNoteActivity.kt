@@ -16,7 +16,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.dnnypck.capacitiesquicknotepro.data.network.postToTarget
+import com.dnnypck.capacitiesquicknotepro.data.network.CapacitiesApi
 import com.dnnypck.capacitiesquicknotepro.ui.theme.CapacitiesQuickNoteTheme
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import kotlinx.coroutines.delay
@@ -64,32 +64,16 @@ class WidgetNoteActivity : ComponentActivity() {
             return
         }
 
-        val apiKey = preferencesManager.getApiKey()
-        if (apiKey.isBlank()) {
-            Toast.makeText(this, "Please configure API key in settings", Toast.LENGTH_SHORT).show()
+        val selectedSpace = preferencesManager.getSpaces().find { it.id == selectedSpaceId }
+        val apiToken = selectedSpace?.apiToken
+        if (apiToken.isNullOrBlank()) {
+            Toast.makeText(this, "This space needs a new API token — add one in app settings", Toast.LENGTH_SHORT).show()
             return
         }
 
         lifecycleScope.launch {
             try {
-                val headers = mapOf(
-                    "Authorization" to "Bearer $apiKey",
-                    "Content-Type" to "application/json"
-                )
-
-                val body = """
-                    {
-                        "spaceId": "$selectedSpaceId",
-                        "mdText": "${noteText.replace("\"", "\\\"").replace("\n", "\\n")}",
-                        "origin": "commandPalette"
-                    }
-                """.trimIndent()
-
-                val result = postToTarget(
-                    url = "https://api.capacities.io/save-to-daily-note",
-                    headers = headers,
-                    body = body
-                )
+                val result = CapacitiesApi.appendToDailyNote(apiToken, noteText)
 
                 result.fold(
                     onSuccess = {

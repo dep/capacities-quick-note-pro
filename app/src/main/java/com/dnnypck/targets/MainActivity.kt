@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
 
         val preferencesManager = PreferencesManager(applicationContext)
         preferencesManager.migrateFromLegacySpaceId()
+        preferencesManager.migrateToTokenPerSpace()
         viewModelFactory = ViewModelFactory(preferencesManager)
 
         handleIntent(intent)

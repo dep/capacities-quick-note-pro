@@ -15,8 +15,8 @@ android {
         applicationId = "com.dnnypck.capacitiesquicknotepro"
         minSdk = 24
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.2.3"
+        versionCode = 11
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -77,6 +77,10 @@ dependencies {
 
     // ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+    // In-App Review
+    implementation(libs.play.review)
+    implementation(libs.play.review.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -139,26 +139,13 @@ fun SettingsScreen(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            OutlinedTextField(
-                value = state.apiKey,
-                onValueChange = { viewModel.updateApiKey(it) },
-                label = { Text("API Key") },
-                supportingText = { Text("Go to Settings → Capacities API. Create a new API key there and paste it here.") },
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+            Text(
+                text = "Each space needs its own API token. In Capacities, go to Settings → Capacities API and create a token for the space.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = { viewModel.saveApiKey() },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Save API Key")
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -234,8 +221,8 @@ fun SettingsScreen(
             SpaceDialog(
                 space = state.editingSpace,
                 onDismiss = { viewModel.hideSpaceDialog() },
-                onSave = { spaceId, nickname ->
-                    viewModel.saveSpace(spaceId, nickname)
+                onSave = { apiToken, nickname ->
+                    viewModel.saveSpace(apiToken, nickname)
                 }
             )
         }
@@ -263,11 +250,19 @@ fun SpaceListItem(
                     text = space.nickname ?: "Unnamed Space",
                     style = MaterialTheme.typography.titleSmall
                 )
-                Text(
-                    text = space.id,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (space.apiToken.isNullOrBlank()) {
+                    Text(
+                        text = "API token needed",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    Text(
+                        text = "API token configured",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             Row {
                 IconButton(onClick = onEdit) {
@@ -285,9 +280,9 @@ fun SpaceListItem(
 fun SpaceDialog(
     space: Space?,
     onDismiss: () -> Unit,
-    onSave: (spaceId: String, nickname: String?) -> Unit
+    onSave: (apiToken: String, nickname: String?) -> Unit
 ) {
-    var spaceId by remember { mutableStateOf(space?.id ?: "") }
+    var apiToken by remember { mutableStateOf(space?.apiToken ?: "") }
     var nickname by remember { mutableStateOf(space?.nickname ?: "") }
 
     AlertDialog(
@@ -296,11 +291,13 @@ fun SpaceDialog(
         text = {
             Column {
                 OutlinedTextField(
-                    value = spaceId,
-                    onValueChange = { spaceId = it },
-                    label = { Text("Space ID") },
-                    supportingText = { Text("Go to Settings → Space settings. The space ID will be displayed there.") },
-                    modifier = Modifier.fillMaxWidth()
+                    value = apiToken,
+                    onValueChange = { apiToken = it },
+                    label = { Text("API Token") },
+                    supportingText = { Text("In Capacities, go to Settings → Capacities API. Create a token for this space and paste it here.") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
@@ -312,7 +309,7 @@ fun SpaceDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(spaceId, nickname.ifBlank { null }) }) {
+            TextButton(onClick = { onSave(apiToken, nickname.ifBlank { null }) }) {
                 Text("Save")
             }
         },

@@ -25,30 +25,27 @@ Android App (Pre-release): https://play.google.com/apps/testing/com.dnnypck.capa
 
 - Android 7.0 (API 24) or higher
 - A [Capacities.io](https://capacities.io) Pro account
-- Capacities API key and Space ID
+- A Capacities API token for each space you want to save to
 
 ## Setup
 
 ### Getting Your Capacities Credentials
 
-1. **API Key**:
+1. **API Token** (one per space):
    - Open Capacities app
    - Go to Settings → Capacities API
-   - Create a new API key
-   - Copy the generated key
+   - Create a new API token for the space you want to save to
+   - Copy the generated `cap-api-…` token
 
-2. **Space ID**:
-   - Open Capacities app
-   - Go to Settings → Space settings
-   - Find and copy your Space ID
+The new Capacities API scopes each token to a single space, so there is no separate Space ID — the token determines which space your notes go to. Repeat the steps above for each additional space.
 
 ### Installing the App
 
 1. Download the latest APK from the [Releases](../../releases) page
 2. Install on your Android device
 3. Open the app and tap the settings icon (⚙️)
-4. Enter your API Key and Space ID
-5. Tap "Save Settings"
+4. Add a space and paste its API token (plus an optional nickname)
+5. Tap "Save"
 
 You're ready to start capturing quick notes!
 
@@ -185,26 +182,23 @@ This project follows standard Kotlin coding conventions and Android best practic
 
 ## API Integration
 
-The app intelligently uses two Capacities API endpoints:
+The app intelligently uses two Capacities API endpoints (API v1, see https://developers.capacities.io/api/reference/):
 
 ### For URL-only content:
-- **Endpoint**: `https://api.capacities.io/save-weblink`
+- **Endpoint**: `https://api.capacities.io/object/url`
 - **Method**: POST
-- **Authentication**: Bearer token (API key)
+- **Authentication**: Bearer token (per-space API token)
 - **Required Fields**:
-  - `spaceId`: Your Capacities space identifier
   - `url`: The URL to save as a weblink
 
 ### For text/markdown content:
-- **Endpoint**: `https://api.capacities.io/save-to-daily-note`
+- **Endpoint**: `https://api.capacities.io/blocks/daily-note/append`
 - **Method**: POST
-- **Authentication**: Bearer token (API key)
+- **Authentication**: Bearer token (per-space API token)
 - **Required Fields**:
-  - `spaceId`: Your Capacities space identifier
-  - `mdText`: Markdown-formatted note content
-  - `origin`: Set to "commandPalette"
+  - `markdown`: Markdown-formatted note content
 
-The app automatically detects if your input is only a URL and uses the appropriate endpoint.
+Each API token is scoped to a single space, so no space identifier is sent — the token determines the target space. The app automatically detects if your input is only a URL and uses the appropriate endpoint.
 
 ## Privacy & Security
 
@@ -217,9 +211,9 @@ The app automatically detects if your input is only a URL and uses the appropria
 
 ### "Failed to send to Capacities" Error
 
-- Verify your API key and Space ID are correct in Settings
+- Verify the space's API token is correct in Settings (tokens are per-space with the new Capacities API)
 - Check your internet connection
-- Ensure your Capacities API key has the necessary permissions
+- Ensure your Capacities API token has the necessary permissions
 - Review the detailed error message displayed in the app
 
 ### Share Target Not Appearing

@@ -2,7 +2,7 @@ package com.dnnypck.capacitiesquicknotepro.ui.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dnnypck.capacitiesquicknotepro.data.network.postToTarget
+import com.dnnypck.capacitiesquicknotepro.data.network.CapacitiesApi
 import com.dnnypck.capacitiesquicknotepro.util.PreferencesManager
 import com.dnnypck.targets.data.model.Space
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +18,8 @@ data class MainScreenState(
     val hasCredentials: Boolean = false,
     val isDemoMode: Boolean = false,
     val availableSpaces: List<Space> = emptyList(),
-    val selectedSpaceId: String? = null
+    val selectedSpaceId: String? = null,
+    val triggerReviewRequest: Boolean = false
 )
 
 class MainViewModel(
@@ -31,6 +32,12 @@ class MainViewModel(
     init {
         checkCredentials()
         loadSpaces()
+        if (preferencesManager.isMigrationNoticePending()) {
+            _state.update {
+                it.copy(message = "Capacities updated their API — each space now needs its own API token. Open Settings to add one per space.")
+            }
+            preferencesManager.clearMigrationNotice()
+        }
     }
 
     fun checkCredentials() {
@@ -129,52 +136,41 @@ class MainViewModel(
             return
         }
 
-        val apiKey = preferencesManager.getApiKey()
-        val spaceId = selectedSpaceId
+        val selectedSpace = _state.value.availableSpaces.find { it.id == selectedSpaceId }
+        if (selectedSpace == null) {
+            _state.update { it.copy(message = "Please select a space") }
+            return
+        }
+        val apiToken = selectedSpace.apiToken
+        if (apiToken.isNullOrBlank()) {
+            _state.update { it.copy(message = "This space needs a new API token — open Settings to add one") }
+            return
+        }
 
         viewModelScope.launch {
             _state.update { it.copy(isSending = true, message = null) }
 
             try {
-                val headers = mapOf(
-                    "Authorization" to "Bearer $apiKey",
-                    "Content-Type" to "application/json"
-                )
-
                 // Check if content is only a URL
                 val isUrl = isUrlOnly(content)
-                val (endpoint, body) = if (isUrl) {
+                val endpoint = if (isUrl) CapacitiesApi.WEBLINK_ENDPOINT else CapacitiesApi.DAILY_NOTE_ENDPOINT
+                val result = if (isUrl) {
                     // Use save-weblink endpoint
-                    "https://api.capacities.io/save-weblink" to """
-                        {
-                            "spaceId": "$spaceId",
-                            "url": "${content.trim().replace("\"", "\\\"")}"
-                        }
-                    """.trimIndent()
+                    CapacitiesApi.saveWeblink(apiToken, content.trim())
                 } else {
                     // Use save-to-daily-note endpoint
-                    "https://api.capacities.io/save-to-daily-note" to """
-                        {
-                            "spaceId": "$spaceId",
-                            "mdText": "${content.replace("\"", "\\\"").replace("\n", "\\n")}",
-                            "origin": "commandPalette"
-                        }
-                    """.trimIndent()
+                    CapacitiesApi.appendToDailyNote(apiToken, content)
                 }
-
-                val result = postToTarget(
-                    url = endpoint,
-                    headers = headers,
-                    body = body
-                )
 
                 result.fold(
                     onSuccess = {
+                        val saveCount = preferencesManager.incrementSuccessfulSaves()
                         _state.update {
                             it.copy(
                                 isSending = false,
                                 message = "Successfully saved to Capacities",
-                                content = ""
+                                content = "",
+                                triggerReviewRequest = saveCount == 5
                             )
                         }
                     },
@@ -186,8 +182,8 @@ class MainViewModel(
                             appendLine()
                             appendLine("Request details:")
                             appendLine("Endpoint: $endpoint")
-                            appendLine("Space ID: $spaceId")
-                            appendLine("API Key: ${if (apiKey.length >= 8) apiKey.take(8) + "..." else "(too short)"}")
+                            appendLine("Space: ${selectedSpace.getDisplayName()}")
+                            appendLine("API Token: ${if (apiToken.length >= 12) apiToken.take(12) + "..." else "(too short)"}")
                         }.trimEnd()
                         _state.update {
                             it.copy(
@@ -210,5 +206,9 @@ class MainViewModel(
 
     fun clearMessage() {
         _state.update { it.copy(message = null) }
+    }
+
+    fun clearReviewRequest() {
+        _state.update { it.copy(triggerReviewRequest = false) }
     }
 }

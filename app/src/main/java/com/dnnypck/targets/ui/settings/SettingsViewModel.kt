@@ -9,8 +9,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 data class SettingsScreenState(
-    val apiKey: String = "",
-    val spaceId: String = "",
     val spaces: List<Space> = emptyList(),
     val editingSpace: Space? = null,
     val showAddDialog: Boolean = false,
@@ -31,44 +29,9 @@ class SettingsViewModel(
     private fun loadSettings() {
         _state.update {
             it.copy(
-                apiKey = preferencesManager.getApiKey(),
-                spaceId = preferencesManager.getSpaceId(),
                 spaces = preferencesManager.getSpaces()
             )
         }
-    }
-
-    fun updateApiKey(apiKey: String) {
-        _state.update { it.copy(apiKey = apiKey) }
-    }
-
-    fun updateSpaceId(spaceId: String) {
-        _state.update { it.copy(spaceId = spaceId) }
-    }
-
-    fun saveSettings() {
-        val apiKey = _state.value.apiKey.trim()
-        val spaceId = _state.value.spaceId.trim()
-
-        if (apiKey.isBlank() || spaceId.isBlank()) {
-            _state.update { it.copy(message = "Please fill in all fields") }
-            return
-        }
-
-        preferencesManager.saveApiKey(apiKey)
-        preferencesManager.saveSpaceId(spaceId)
-        _state.update { it.copy(message = "Settings saved successfully") }
-    }
-
-    fun saveApiKey() {
-        val apiKey = _state.value.apiKey.trim()
-        if (apiKey.isBlank()) {
-            _state.update { it.copy(message = "API Key can't be empty. Paste your key from Capacities → Settings → Capacities API.") }
-            return
-        }
-        preferencesManager.saveApiKey(apiKey)
-        // Reflect the cleaned-up value (whitespace/new lines stripped) back into the field.
-        _state.update { it.copy(apiKey = preferencesManager.getApiKey(), message = "API Key saved") }
     }
 
     fun showAddSpaceDialog() {
@@ -83,12 +46,12 @@ class SettingsViewModel(
         _state.update { it.copy(showAddDialog = false, editingSpace = null) }
     }
 
-    fun saveSpace(spaceId: String, nickname: String?) {
-        val trimmedId = spaceId.trim()
+    fun saveSpace(apiToken: String, nickname: String?) {
+        val trimmedToken = apiToken.trim()
         val trimmedNickname = nickname?.trim()
 
-        if (trimmedId.isBlank()) {
-            _state.update { it.copy(message = "Space ID can't be empty. Find it in Capacities → Settings → Space settings.") }
+        if (trimmedToken.isBlank()) {
+            _state.update { it.copy(message = "API Token can't be empty. Create one in Capacities → Settings → Capacities API.") }
             return
         }
 
@@ -96,14 +59,18 @@ class SettingsViewModel(
         if (editingSpace != null) {
             // Update existing space
             val updatedSpace = editingSpace.copy(
-                id = trimmedId,
+                apiToken = trimmedToken,
                 nickname = trimmedNickname
             )
             preferencesManager.updateSpace(updatedSpace)
             _state.update { it.copy(message = "Space updated") }
         } else {
             // Add new space
-            val newSpace = Space(id = trimmedId, nickname = trimmedNickname)
+            val newSpace = Space(
+                id = java.util.UUID.randomUUID().toString(),
+                nickname = trimmedNickname,
+                apiToken = trimmedToken
+            )
             preferencesManager.addSpace(newSpace)
             _state.update { it.copy(message = "Space added") }
         }
@@ -131,7 +98,16 @@ class SettingsViewModel(
         result.fold(
             onSuccess = {
                 loadSettings()
-                _state.update { it.copy(message = "Settings restored successfully") }
+                val needsTokens = preferencesManager.getSpaces().any { it.apiToken.isNullOrBlank() }
+                _state.update {
+                    it.copy(
+                        message = if (needsTokens) {
+                            "Settings restored — the Capacities API changed, so add a new API token for each space"
+                        } else {
+                            "Settings restored successfully"
+                        }
+                    )
+                }
             },
             onFailure = { error ->
                 _state.update { it.copy(message = "Restore failed: ${error.message}") }

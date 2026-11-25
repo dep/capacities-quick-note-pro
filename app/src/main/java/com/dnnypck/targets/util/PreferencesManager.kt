@@ -42,14 +42,19 @@ class PreferencesManager(context: Context) {
     }
 
     fun hasRequiredSettings(): Boolean {
-        return getApiKey().isNotBlank() && getSpaces().isNotEmpty()
+        return getSpaces().isNotEmpty()
     }
 
     // Multiple spaces support
     fun saveSpaces(spaces: List<Space>) {
-        // Strip whitespace/new lines from every Space ID before persisting so
-        // pasted IDs are always stored clean, whatever path they came in through.
-        val sanitizedSpaces = spaces.map { it.copy(id = sanitizeCredential(it.id)) }
+        // Strip whitespace/new lines from every Space ID and API token before persisting
+        // so pasted credentials are always stored clean, whatever path they came in through.
+        val sanitizedSpaces = spaces.map {
+            it.copy(
+                id = sanitizeCredential(it.id),
+                apiToken = it.apiToken?.let(::sanitizeCredential)
+            )
+        }
         val jsonString = json.encodeToString(sanitizedSpaces)
         prefs.edit().putString(KEY_SPACES, jsonString).apply()
     }
@@ -115,10 +120,30 @@ class PreferencesManager(context: Context) {
         }
     }
 
+    // The new Capacities API scopes each token to a single space, so the global
+    // API key is obsolete. Clear it once and flag a one-time notice so the user
+    // knows to add a per-space token.
+    fun migrateToTokenPerSpace() {
+        val legacyApiKey = prefs.getString(KEY_API_KEY, null)
+        if (!legacyApiKey.isNullOrBlank()) {
+            prefs.edit().remove(KEY_API_KEY).apply()
+            if (getSpaces().isNotEmpty()) {
+                prefs.edit().putBoolean(KEY_MIGRATION_NOTICE_PENDING, true).apply()
+            }
+        }
+    }
+
+    fun isMigrationNoticePending(): Boolean {
+        return prefs.getBoolean(KEY_MIGRATION_NOTICE_PENDING, false)
+    }
+
+    fun clearMigrationNotice() {
+        prefs.edit().remove(KEY_MIGRATION_NOTICE_PENDING).apply()
+    }
+
     // Backup and restore
     fun createBackup(): String {
         val backupData = BackupData(
-            apiKey = getApiKey(),
             spaces = getSpaces(),
             selectedSpaceId = getSelectedSpaceId()
         )
@@ -130,7 +155,8 @@ class PreferencesManager(context: Context) {
             val backupData = json.decodeFromString<BackupData>(backupJson)
 
             // Restore API key
-            saveApiKey(backupData.apiKey)
+            // Legacy v1 backups carried a global API key; the new Capacities API
+            // uses per-space tokens, so it is intentionally not restored.
 
             // Restore spaces
             saveSpaces(backupData.spaces)
@@ -156,11 +182,23 @@ class PreferencesManager(context: Context) {
         prefs.edit().putBoolean(KEY_DEMO_MODE, enabled).apply()
     }
 
+    fun incrementSuccessfulSaves(): Int {
+        val count = prefs.getInt(KEY_SUCCESSFUL_SAVES, 0) + 1
+        prefs.edit().putInt(KEY_SUCCESSFUL_SAVES, count).apply()
+        return count
+    }
+
+    fun getSuccessfulSaves(): Int {
+        return prefs.getInt(KEY_SUCCESSFUL_SAVES, 0)
+    }
+
     companion object {
         private const val KEY_API_KEY = "api_key"
         private const val KEY_SPACE_ID = "space_id"
         private const val KEY_SPACES = "spaces_json"
         private const val KEY_SELECTED_SPACE_ID = "selected_space_id"
         private const val KEY_DEMO_MODE = "demo_mode"
+        private const val KEY_MIGRATION_NOTICE_PENDING = "migration_notice_pending"
+        private const val KEY_SUCCESSFUL_SAVES = "successful_saves_count"
     }
 }
